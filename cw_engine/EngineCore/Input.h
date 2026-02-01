@@ -1,14 +1,23 @@
-// Input.h
 #pragma once
 #include <glm/glm.hpp>
 
+// Forward declaration, щоб не тягнути важкий GLFW у хедер
+struct GLFWwindow;
+
 namespace Engine {
-    static class Input {
-    public:
-        bool IsKeyPressed(GLFWwindow *s_Window, int keycode);
+    namespace Core {
+        class Input {
+        public:
+            static bool IsKeyPressed(int keycode);
 
-        bool IsMouseButtonPressed(GLFWwindow *s_Window, int button);
+            static bool IsMouseButtonPressed(int button);
 
-        glm::vec2 GetMousePosition(GLFWwindow *s_Window);
-    };
+            static glm::vec2 GetMousePosition();
+
+            static void Init(GLFWwindow *window);
+
+        private:
+            static GLFWwindow *s_Window;
+        };
+    }
 }

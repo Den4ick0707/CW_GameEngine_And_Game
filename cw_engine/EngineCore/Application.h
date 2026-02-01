@@ -3,23 +3,28 @@
 #include "Window.h"
 
 namespace Engine {
-    class Application {
-    public:
-        Application();
-        virtual ~Application();
+    namespace Core {
+        class Application {
+        public:
+            Application();
 
-        void Run(); // Головний цикл тут
+            virtual ~Application();
 
-        // Клієнт (гра) буде це реалізовувати
-        virtual void OnUpdate(float deltaTime) {}
-        virtual void OnRender() {}
+            void Run();
 
-    private:
-        std::unique_ptr<Window> m_Window;
-        bool m_Running = true;
-        float m_LastFrameTime = 0.0f;
-    };
+            virtual void OnUpdate(float deltaTime) {
+            }
 
-    // Визначається в клієнті (cw_game)
-    Application* CreateApplication();
+            virtual void OnRender() {
+            }
+
+        private:
+            std::unique_ptr<Window> m_Window;
+            bool m_Running = true;
+            float m_LastFrameTime = 0.0f;
+        };
+
+        // Визначається в клієнті (cw_game)
+        Application *CreateApplication();
+    }
 }
