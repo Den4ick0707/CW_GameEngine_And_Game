@@ -1,19 +1,38 @@
-CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
-Makefile
-cmake_install.cmake
-install_manifest.txt
-compile_commands.json
-CTestTestfile.cmake
-_deps
+# === CMake ===
+# Ігноруємо папку зборки, де лежать скомпільовані файли та кеш
+/build/
+/cmake-build-debug/
+/cmake-build-release/
+/out/
 CMakeUserPresets.json
 
-# CLion
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#cmake-build-*
+# === CLion / JetBrains ===
+# Ігноруємо локальні налаштування IDE (те, що ми бачили на скріншоті)
+.idea/
+*.iws
+*.iml
+*.ipr
+cmake-build-*/
+
+# === C++ Binaries & Objects ===
+# Ігноруємо результати компіляції
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.pdb
+
+# === OS generated files ===
+# Файли системи (якщо раптом відкриєш проект на Windows)
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Logs & Temp ===
+*.log
+*.tmp
+*.temp
