@@ -5,7 +5,7 @@ namespace Engine {
     namespace Core {
         class Window {
         private:
-            GLFWwindow *window;
+            GLFWwindow *m_Window;
             int width, height;
             std::string title;
 
@@ -22,7 +22,7 @@ namespace Engine {
 
             int GetWidth() const { return width; }
             int GetHeight() const { return height; }
-            GLFWwindow *GetNativeWindow() const { return window; }
+            GLFWwindow *GetNativeWindow() const { return m_Window; }
 
             bool ShouldClose() const;
 

@@ -1,43 +1,28 @@
 #include "Application.h"
-#include "Application.h"
-#include "Input.h"
+#include <GLFW/glfw3.h>
 
 namespace Engine {
-    namespace Core {
-        Application *Application::s_Instance = nullptr;
+    Application::Application() {
+        m_Window = std::make_unique<Window>(1280, 720, "CW Engine");
+        // Тут ініціалізація подій (Events), логера, тощо
+    }
 
-        Application::Application() {
-            s_Instance = this;
+    Application::~Application() {}
 
-            m_Window = std::make_unique<Window>(800, 600, "Coursework Engine");
+    void Application::Run() {
+        while (m_Running) {
+            float time = (float)glfwGetTime();
+            float deltaTime = time - m_LastFrameTime;
+            m_LastFrameTime = time;
 
-            Input::Init(m_Window->GetNativeWindow());
-        }
+            // 1. Оновлення логіки (фізика, AI)
+            OnUpdate(deltaTime);
 
-        Application::~Application() {
-        }
+            // 2. Рендерінг
+            m_Window->OnUpdate(); // SwapBuffers і PollEvents тут
+            OnRender();
 
-        void Application::Run() {
-            OnInit();
-
-            while (m_Running) {
-                float time = (float) glfwGetTime();
-                float timestep = time - m_LastFrameTime;
-                m_LastFrameTime = time;
-
-                if (m_Window->ShouldClose()) {
-                    m_Running = false;
-                }
-
-                glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-                glClear(GL_COLOR_BUFFER_BIT);
-
-                OnUpdate(timestep);
-
-                m_Window->OnUpdate();
-            }
-
-            OnShutdown();
+            if (m_Window->ShouldClose()) m_Running = false;
         }
     }
 }

@@ -2,23 +2,27 @@
 
 namespace Engine {
     namespace Core {
-
-        Window::Window(int w, int h, const std::string &t)
-            : width(w), height(h), title(t), window(nullptr) {
-            if (!InitGLFW()) {
-                std::cerr << "CRITICAL ERROR: Failed to init GLFW!" << std::endl;
-                // У реальному рушії тут кидають exception або assert
-                exit(-1);
+        Window::Window(int width, int height, const std::string &title) {
+            if (!glfwInit()) {
+                // Логування помилки! "CRITICAL: GLFW Init failed!"
+                return;
             }
 
-            if (!InitGLAD()) {
-                std::cerr << "CRITICAL ERROR: Failed to init GLAD!" << std::endl;
-                exit(-1);
+            m_Window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+            glfwMakeContextCurrent(m_Window);
+
+            // Ініціалізація GLAD повинна бути ТУТ, одразу після створення контексту
+            if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+                // "CRITICAL: GLAD Init failed!"
             }
+
+            // Встановити колбеки подій (Resize, KeyPress)
+            glfwSetWindowUserPointer(m_Window, this);
         }
+
         Window::~Window() {
-            glfwDestroyWindow(window);
-            glfwTerminate();
+            glfwDestroyWindow(m_Window);
+            glfwTerminate(); // Обережно, якщо вікон декілька
         }
 
         bool Window::InitGLFW() {
@@ -35,20 +39,20 @@ namespace Engine {
             glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-            window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
-            if (window == NULL) {
+            m_Window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
+            if (m_Window == NULL) {
                 std::cout << "Failed to create GLFW window" << std::endl;
                 glfwTerminate();
                 return false;
             }
 
-            glfwMakeContextCurrent(window);
+            glfwMakeContextCurrent(m_Window);
 
             // Зберігаємо вказівник на цей клас всередині вікна GLFW (знадобиться для Input пізніше)
-            glfwSetWindowUserPointer(window, this);
+            glfwSetWindowUserPointer(m_Window, this);
 
             // Встановлюємо колбек
-            glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+            glfwSetFramebufferSizeCallback(m_Window, FramebufferSizeCallback);
 
             return true;
         }
@@ -67,12 +71,12 @@ namespace Engine {
         }
 
         void Window::OnUpdate() {
-            glfwSwapBuffers(window); // Міняє буфери (показує новий кадр)
+            glfwSwapBuffers(m_Window); // Міняє буфери (показує новий кадр)
             glfwPollEvents(); // Слухає клавіатуру/мишу
         }
 
         bool Window::ShouldClose() const {
-            return glfwWindowShouldClose(window);
+            return glfwWindowShouldClose(m_Window);
         }
 
         void Window::FramebufferSizeCallback(GLFWwindow *window, int width, int height) {

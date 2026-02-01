@@ -1,26 +1,14 @@
-#ifndef COURSEWORK_GAMEENGINE_INPUT_H
-#define COURSEWORK_GAMEENGINE_INPUT_H
+// Input.h
+#pragma once
+#include <glm/glm.hpp>
 
 namespace Engine {
-    namespace Core {
-        class Input {
-        public:
-            static void Init(GLFWwindow *window);
+    static class Input {
+    public:
+        bool IsKeyPressed(GLFWwindow *s_Window, int keycode);
 
-            static bool GetKey(int keycode);
+        bool IsMouseButtonPressed(GLFWwindow *s_Window, int button);
 
-            static bool GetMouseButton(int button);
-
-            static std::pair<float, float> GetMousePosition();
-
-            static float GetMouseX();
-
-            static float GetMouseY();
-
-        private:
-            static GLFWwindow *s_Window;
-        };
-    }
+        glm::vec2 GetMousePosition(GLFWwindow *s_Window);
+    };
 }
-
-#endif //COURSEWORK_GAMEENGINE_INPUT_H

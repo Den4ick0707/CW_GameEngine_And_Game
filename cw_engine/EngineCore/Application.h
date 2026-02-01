@@ -1,40 +1,25 @@
-#ifndef COURSEWORK_GAMEENGINE_APPLICATION_H
-#define COURSEWORK_GAMEENGINE_APPLICATION_H
-
+#pragma once
+#include <memory>
 #include "Window.h"
 
 namespace Engine {
-    namespace Core {
-        class Application {
-        public:
-            Application();
+    class Application {
+    public:
+        Application();
+        virtual ~Application();
 
-            virtual ~Application();
+        void Run(); // Головний цикл тут
 
-            void Run();
+        // Клієнт (гра) буде це реалізовувати
+        virtual void OnUpdate(float deltaTime) {}
+        virtual void OnRender() {}
 
-            virtual void OnInit() {
-            }
+    private:
+        std::unique_ptr<Window> m_Window;
+        bool m_Running = true;
+        float m_LastFrameTime = 0.0f;
+    };
 
-            virtual void OnUpdate(float dt) {
-            }
-
-            virtual void OnShutdown() {
-            }
-
-            Window &GetWindow() { return *m_Window; }
-
-            static Application &Get() { return *s_Instance; }
-
-        private:
-            std::unique_ptr<Window> m_Window;
-            bool m_Running = true;
-            float m_LastFrameTime = 0.0f;
-
-            static Application *s_Instance;
-        };
-
-        Application *CreateApplication();
-    }
+    // Визначається в клієнті (cw_game)
+    Application* CreateApplication();
 }
-#endif //COURSEWORK_GAMEENGINE_APPLICATION_H
