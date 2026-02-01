@@ -3,4 +3,4 @@ project(cw_engine)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_library(cw_engine STATIC library.cpp)
+add_library(cw_engine STATIC )

@@ -36,3 +36,10 @@ Desktop.ini
 *.log
 *.tmp
 *.temp
+
+# Ігноруємо документацію та тести сторонніх бібліотек
+**/docs/
+**/examples/
+**/tests/
+**/test/
+**/tutorial/
