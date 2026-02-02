@@ -1,16 +1,19 @@
+#include "pch.h"
 #include "VertexBuffer.h"
-namespace Graphics {
-    VertexBuffer::VertexBuffer(const void *data, uint32_t size) {
-        glCreateBuffers(1, &m_RendererID);
-        glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
-        glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
-    }
+#include <glad/glad.h>
 
+namespace Engine::Graphics {
 
     VertexBuffer::VertexBuffer(uint32_t size) {
         glCreateBuffers(1, &m_RendererID);
         glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
         glBufferData(GL_ARRAY_BUFFER, size, nullptr, GL_DYNAMIC_DRAW);
+    }
+
+    VertexBuffer::VertexBuffer(const void* vertices, uint32_t size) {
+        glCreateBuffers(1, &m_RendererID);
+        glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
+        glBufferData(GL_ARRAY_BUFFER, size, vertices, GL_STATIC_DRAW);
     }
 
     VertexBuffer::~VertexBuffer() {
@@ -25,7 +28,7 @@ namespace Graphics {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    void VertexBuffer::SetData(const void *data, uint32_t size) {
+    void VertexBuffer::SetData(const void* data, uint32_t size) {
         glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
         glBufferSubData(GL_ARRAY_BUFFER, 0, size, data);
     }

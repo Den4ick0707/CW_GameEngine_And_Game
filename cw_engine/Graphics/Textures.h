@@ -1,27 +1,26 @@
-#ifndef OPENGLPROJECT_TEXTURES_HPP
-#define OPENGLPROJECT_TEXTURES_HPP
+#pragma once
 #include "pch.h"
-namespace Graphics {
+#include <string>
+
+namespace Engine::Graphics {
+
     class Textures {
     public:
-        unsigned int t_ID;
-        int t_width, t_height, t_nrChannels;
-
-        Textures(const char *path);
-        Textures(uint32_t width, uint32_t height, const void* data);
+        Textures(const std::string& path);
+        // Для створення "білої текстури" вручну
+        Textures(uint32_t width, uint32_t height, uint32_t data);
         ~Textures();
 
-        void Bind(unsigned int slot = 0) const;
-
+        void Bind(uint32_t slot = 0) const;
         void Unbind() const;
 
-        // minFilter: як текстура виглядає, коли вона далеко (зменшена)
-        // magFilter: як текстура виглядає, коли ми дуже близько (збільшена)
-        void SetFilter(GLenum minFilter, GLenum magFilter);
+        uint32_t GetWidth() const { return m_Width; }
+        uint32_t GetHeight() const { return m_Height; }
+        uint32_t GetRendererID() const { return m_RendererID; }
 
-        // wrapS: по горизонталі (вісь X/U)
-        // wrapT: по вертикалі (вісь Y/V)
-        void SetWrap(GLenum wrapS, GLenum wrapT);
+    private:
+        uint32_t m_RendererID;
+        int m_Width, m_Height, m_Channels;
+        std::string m_Path;
     };
 }
-#endif //OPENGLPROJECT_TEXTURES_HPP

@@ -1,8 +1,9 @@
-#ifndef OPENGLPROJECT_SHADERMODULE_HPP
-#define OPENGLPROJECT_SHADERMODULE_HPP
+#pragma once
 #include "pch.h"
+#include <filesystem>
 
-namespace Graphics {
+namespace Engine::Graphics {
+
     enum class ShaderType {
         VERTEX,
         FRAGMENT,
@@ -14,19 +15,20 @@ namespace Graphics {
     class ShaderModule {
     public:
         ShaderModule(const std::filesystem::path& source, ShaderType shader_type);
-        ShaderModule(const ShaderModule& other)=delete;
-        ShaderModule& operator=(const ShaderModule& other)=delete;
         ~ShaderModule();
 
+        // Забороняємо копіювання, щоб не видалити шейдер двічі
+        ShaderModule(const ShaderModule& other) = delete;
+        ShaderModule& operator=(const ShaderModule& other) = delete;
+
         [[nodiscard]] ShaderType GetType() const { return m_Type; }
-        [[nodiscard]] GLuint GetID() const { return m_ID; }
+        [[nodiscard]] uint32_t GetID() const { return m_ID; }
 
     private:
-        GLuint m_ID = 0;
+        uint32_t m_ID = 0;
         ShaderType m_Type;
 
-        std::string ReadFromFile(const std::filesystem::path &path);
-        void CheckCompileErrors(GLuint shader, const std::string &type);
+        std::string ReadFromFile(const std::filesystem::path& path);
+        void CheckCompileErrors(uint32_t shader, const std::string& type);
     };
 }
-#endif

@@ -1,95 +1,68 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include "EngineLibraries/stb/stb_image.h"
+#include "pch.h"
 #include "Textures.h"
+#include <glad/glad.h>
 
-namespace Graphics {
-    Textures::Textures(const char *texture_path) {
-        glGenTextures(1, &t_ID);
+#define STB_IMAGE_IMPLEMENTATION
+#include <../stb/stb_image.h> // Переконайся, що шлях правильний відносно include directories
+
+namespace Engine::Graphics {
+
+    Textures::Textures(const std::string& path)
+        : m_Path(path)
+    {
         stbi_set_flip_vertically_on_load(true);
 
-        unsigned char *data = stbi_load(texture_path, &t_width, &t_height, &t_nrChannels, 0);
+        unsigned char* data = stbi_load(path.c_str(), &m_Width, &m_Height, &m_Channels, 0);
 
         if (data) {
-            GLenum format;
-            if (t_nrChannels == 1)
-                format = GL_RED;
-            else if (t_nrChannels == 3)
-                format = GL_RGB;
-            else if (t_nrChannels == 4)
-                format = GL_RGBA;
+            GLenum internalFormat = 0, dataFormat = 0;
+            if (m_Channels == 4) {
+                internalFormat = GL_RGBA8;
+                dataFormat = GL_RGBA;
+            } else if (m_Channels == 3) {
+                internalFormat = GL_RGB8;
+                dataFormat = GL_RGB;
+            }
 
-            glBindTexture(GL_TEXTURE_2D, t_ID);
-            glTexImage2D(GL_TEXTURE_2D, 0, format, t_width, t_height, 0, format, GL_UNSIGNED_BYTE, data);
+            glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+            glTextureStorage2D(m_RendererID, 1, internalFormat, m_Width, m_Height);
 
+            // Налаштування фільтрації (Pixel art style)
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTextureParameteri(m_RendererID, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-            glGenerateMipmap(GL_TEXTURE_2D);
+            glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, dataFormat, GL_UNSIGNED_BYTE, data);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            stbi_image_free(data);
         } else {
-            std::cout << "Failed to load texture: " << texture_path << std::endl;
+            std::cerr << "Failed to load texture: " << path << std::endl;
         }
-        stbi_image_free(data);
     }
 
-    Textures::Textures(uint32_t width, uint32_t height, const void *data)
-        : t_width(width), t_height(height) {
-        glGenTextures(1, &t_ID);
-        glBindTexture(GL_TEXTURE_2D, t_ID);
+    // Спеціальний конструктор для 1x1 пікселя (білий квадрат)
+    Textures::Textures(uint32_t width, uint32_t height, uint32_t data)
+        : m_Width(width), m_Height(height)
+    {
+        glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
+        glTextureStorage2D(m_RendererID, 1, GL_RGBA8, m_Width, m_Height);
 
-        // Налаштування для піксельної графіки та системних текстур
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Важливо для пікселів
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTextureParameteri(m_RendererID, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-        // Завантажуємо дані (GL_RGBA8 - стандарт)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
-        // Відв'язуємо
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, GL_RGBA, GL_UNSIGNED_BYTE, &data);
     }
 
     Textures::~Textures() {
-        glDeleteTextures(1, &t_ID);
+        glDeleteTextures(1, &m_RendererID);
     }
 
-    void Textures::Bind(unsigned int slot) const {
-        glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, t_ID);
+    void Textures::Bind(uint32_t slot) const {
+        glBindTextureUnit(slot, m_RendererID);
     }
 
     void Textures::Unbind() const {
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-
-    void Textures::SetFilter(GLenum minFilter, GLenum magFilter) {
-        // 1. Прив'язуємо текстуру, щоб OpenGL знав, що ми налаштовуємо саме її
-        glBindTexture(GL_TEXTURE_2D, t_ID);
-
-        // 2. Встановлюємо параметри
-        // Minifying: коли об'єкт менший за текстуру (вдалині)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilter);
-
-        // Magnifying: коли об'єкт більший за текстуру (дуже близько, камера в стіні)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, magFilter);
-
-        // 3. (Опціонально) Відв'язуємо, щоб нічого випадково не зламати
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-
-    void Textures::SetWrap(GLenum wrapS, GLenum wrapT) {
-        glBindTexture(GL_TEXTURE_2D, t_ID);
-
-        // S - це вісь X на текстурі
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapS);
-
-        // T - це вісь Y на текстурі
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT);
-
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 }

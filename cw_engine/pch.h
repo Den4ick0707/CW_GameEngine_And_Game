@@ -21,13 +21,13 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <../stb/stb_image.h> // Переконайся, що шлях правильний відносно include directories
 // ImGui
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
 #endif //PCH_H
-
 
 
 #endif //COURSEWORK_GAMEENGINE_PCH_H

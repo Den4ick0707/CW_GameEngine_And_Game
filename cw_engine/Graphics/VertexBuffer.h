@@ -1,13 +1,13 @@
-#ifndef OPENGLPROJECT_VERTEXBUFFEROBJECT_HPP
-#define OPENGLPROJECT_VERTEXBUFFEROBJECT_HPP
+#pragma once
 #include "pch.h"
 #include "BufferLayout.h"
-namespace Graphics {
+
+namespace Engine::Graphics {
+
     class VertexBuffer {
     public:
-        VertexBuffer(const void* data, uint32_t size);
         VertexBuffer(uint32_t size);
-
+        VertexBuffer(const void* vertices, uint32_t size);
         ~VertexBuffer();
 
         void Bind() const;
@@ -23,4 +23,3 @@ namespace Graphics {
         BufferLayout m_Layout;
     };
 }
-#endif //OPENGLPROJECT_VERTEXBUFFEROBJECT_HPP

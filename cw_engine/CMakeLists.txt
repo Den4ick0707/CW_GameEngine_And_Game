@@ -26,18 +26,31 @@ set(IMGUI_SOURCES
         EngineLibraries/imgui/backends/imgui_impl_opengl3.cpp
 )
 
-# 5. Основні файли (ВИПРАВЛЕНО: CMake не розуміє '*' у set без file(GLOB))
-file(GLOB_RECURSE ENGINE_SOURCES
-        "EngineCore/*.cpp"
-        "Graphics/*.cpp"
-        "Physics/*.cpp"
+# 5. Основні файли рушія
+set(ENGINE_SOURCES
+        EngineCore/Application.cpp
+        EngineCore/EngineCore.cpp
+        EngineCore/Input.cpp
+        EngineCore/Window.cpp
+
+        Graphics/IndexBuffer.cpp
+        Graphics/OrthographicCamera.cpp
+        Graphics/Renderer2D.cpp
+        Graphics/ShaderProgram.cpp
+        Graphics/ShaderModule.cpp
+        Graphics/Textures.cpp
+        Graphics/VertexArray.cpp
+        Graphics/VertexBuffer.cpp
+
+        Physics/RigidBody2D.cpp
+
+        Scene/Scene.cpp
 )
 
-# Створюємо бібліотеку (додаємо і ImGui, і знайдені .cpp файли)
+# Створюємо статичну бібліотеку
 add_library(cw_engine STATIC ${ENGINE_SOURCES} ${IMGUI_SOURCES})
 
 # 6. Precompiled Header
-
 target_compile_definitions(cw_engine PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
 target_precompile_headers(cw_engine PUBLIC pch.h)
 
