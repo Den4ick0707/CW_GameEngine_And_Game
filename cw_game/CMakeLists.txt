@@ -1,20 +1,17 @@
+cmake_minimum_required(VERSION 4.1.2)
+
 project(cw_game)
 
-# Знаходимо всі файли .cpp у папці src
-file(GLOB GAME_SOURCES "src/*.cpp")
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Створюємо файл запуску з main.cpp та всіма знайденими файлами
-add_executable(cw_game main.cpp ${GAME_SOURCES})
+add_executable(${PROJECT_NAME}  src/main.cpp )
+target_include_directories(${PROJECT_NAME} PUBLIC include)
 
-# Підключаємо наш рушій (це автоматично підтягне GLFW, GLM та інше)
-target_link_libraries(cw_game PRIVATE cw_engine)
+target_link_libraries(${PROJECT_NAME} PRIVATE cw_engine)
 
-# Вказуємо грі шлях до її власних файлів та файлів рушія
-target_include_directories(cw_game PRIVATE . ../cw_engine)
-
-# Копіюємо папку Resource у папку з бінарником після збірки (важливо для завантаження текстур)
-add_custom_command(TARGET cw_game POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/Resource"
-        "$<TARGET_FILE_DIR:cw_game>/Resource"
-)
+#add_custom_command(TARGET cw_game POST_BUILD
+#        COMMAND ${CMAKE_COMMAND} -E copy_directory
+#        "${CMAKE_CURRENT_SOURCE_DIR}/Resource"
+#        "$<TARGET_FILE_DIR:cw_game>/Resource"
+#)

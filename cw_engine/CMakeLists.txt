@@ -1,65 +1,64 @@
+# cw_engine/CMakeLists.txt
+cmake_minimum_required(VERSION 4.1.2)
 project(cw_engine)
 
-# 1. Налаштування GLFW
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(LIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs)
+
+
+# GLFW
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-add_subdirectory(EngineLibraries/glfw)
+add_subdirectory(${LIBS_DIR}/glfw)
 
-# 2. Збірка GLAD
-add_library(glad EngineLibraries/glad/src/glad.c)
-target_include_directories(glad PUBLIC EngineLibraries/glad/include)
+# GLAD
+add_library(glad_lib STATIC ${LIBS_DIR}/glad/src/glad.c)
+target_include_directories(glad_lib PUBLIC ${LIBS_DIR}/glad/include)
 
-# 3. Налаштування GLM (header-only)
+# GLM
 add_library(glm_lib INTERFACE)
-target_include_directories(glm_lib INTERFACE EngineLibraries/glm)
+target_include_directories(glm_lib INTERFACE ${LIBS_DIR}/glm)
 
-# 4. Налаштування ImGui
-set(IMGUI_SOURCES
-        EngineLibraries/imgui/imgui.cpp
-        EngineLibraries/imgui/imgui_demo.cpp
-        EngineLibraries/imgui/imgui_draw.cpp
-        EngineLibraries/imgui/imgui_tables.cpp
-        EngineLibraries/imgui/imgui_widgets.cpp
-        EngineLibraries/imgui/backends/imgui_impl_glfw.cpp
-        EngineLibraries/imgui/backends/imgui_impl_opengl3.cpp
+# JSON
+add_library(json_lib INTERFACE)
+target_include_directories(json_lib INTERFACE ${LIBS_DIR}/json/include)
+
+# ImGui
+file(GLOB IMGUI_SOURCES
+        "${LIBS_DIR}/imgui/imgui.cpp"
+        "${LIBS_DIR}/imgui/imgui_demo.cpp"
+        "${LIBS_DIR}/imgui/imgui_draw.cpp"
+        "${LIBS_DIR}/imgui/imgui_tables.cpp"
+        "${LIBS_DIR}/imgui/imgui_widgets.cpp"
+        "${LIBS_DIR}/imgui/backends/imgui_impl_glfw.cpp"
+        "${LIBS_DIR}/imgui/backends/imgui_impl_opengl3.cpp"
 )
+add_library(imgui_lib STATIC ${IMGUI_SOURCES})
+target_include_directories(imgui_lib PUBLIC ${LIBS_DIR}/imgui ${LIBS_DIR}/imgui/backends)
+target_link_libraries(imgui_lib PUBLIC glfw glad_lib) # ImGui залежить від GLFW та OpenGL
 
-# 5. Основні файли рушія
-set(ENGINE_SOURCES
-        EngineCore/Application.cpp
-        EngineCore/EngineCore.cpp
-        EngineCore/Input.cpp
-        EngineCore/Window.cpp
 
-        Graphics/IndexBuffer.cpp
-        Graphics/OrthographicCamera.cpp
-        Graphics/Renderer2D.cpp
-        Graphics/ShaderProgram.cpp
-        Graphics/ShaderModule.cpp
-        Graphics/Textures.cpp
-        Graphics/VertexArray.cpp
-        Graphics/VertexBuffer.cpp
+# --- 2. ПІДКЛЮЧЕННЯ ВНУТРІШНІХ МОДУЛІВ ---
 
-        Physics/RigidBody2D.cpp
+add_subdirectory(core)
+add_subdirectory(graphics)
 
-        Scene/Scene.cpp
+# add_subdirectory(physics)
+
+
+add_library(${PROJECT_NAME} INTERFACE)
+
+target_link_libraries(${PROJECT_NAME} INTERFACE
+        cw_core
+        imgui_lib
+        glad_lib
+        glfw
+        glm_lib
+        json_lib
+        dl
+        pthread
 )
-
-# Створюємо статичну бібліотеку
-add_library(cw_engine STATIC ${ENGINE_SOURCES} ${IMGUI_SOURCES})
-
-# 6. Precompiled Header
-target_compile_definitions(cw_engine PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
-target_precompile_headers(cw_engine PUBLIC pch.h)
-
-# Вказуємо шляхи пошуку хедерів
-target_include_directories(cw_engine PUBLIC
-        .
-        EngineLibraries/imgui
-        EngineLibraries/imgui/backends
-)
-
-# Лінкуємо бібліотеки
-target_link_libraries(cw_engine PUBLIC glfw glad glm_lib dl pthread)
