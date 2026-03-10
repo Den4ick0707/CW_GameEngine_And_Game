@@ -1,4 +1,3 @@
-# cw_engine/CMakeLists.txt
 cmake_minimum_required(VERSION 4.1.2)
 project(cw_engine)
 
@@ -46,14 +45,15 @@ target_link_libraries(imgui_lib PUBLIC glfw glad_lib) # ImGui залежить �
 
 add_subdirectory(core)
 add_subdirectory(graphics)
+add_subdirectory(physics)
+add_subdirectory(scene)
 
-# add_subdirectory(physics)
 
-
-add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME} INTERFACE )
 
 target_link_libraries(${PROJECT_NAME} INTERFACE
         cw_core
+        cw_graphics
         imgui_lib
         glad_lib
         glfw
