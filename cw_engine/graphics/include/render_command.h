@@ -1,12 +1,13 @@
 #ifndef CW_ENGINE_GRAPHICS_RENDER_COMMAND_H
 #define CW_ENGINE_GRAPHICS_RENDER_COMMAND_H
 
-
 #include "vertex_array.h"
 #include <glm/glm.hpp>
 #include <memory>
+#include <cstdint>
 
 namespace Engine::Graphics {
+
     /// @brief Низькорівнева обгортка над командами OpenGL.
     class RenderCommand {
     public:
@@ -18,7 +19,8 @@ namespace Engine::Graphics {
 
         /// @brief Малює геометрію на основі індексного буфера (glDrawElements).
         /// @param vertexArray VAO, який містить VBO та IBO.
-        static void DrawIndexed(const std::shared_ptr<VertexArray> &vertexArray);
+        /// @param indexCount Кількість індексів для малювання. Якщо 0, малюються всі індекси з буфера.
+        static void DrawIndexed(const std::shared_ptr<VertexArray> &vertexArray, uint32_t indexCount = 0);
     };
 }
 

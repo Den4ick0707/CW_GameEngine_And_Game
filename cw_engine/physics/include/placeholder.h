@@ -1,0 +1,8 @@
+//
+// Created by onigirya on 10.03.26.
+//
+
+#ifndef COURSE_WORK_DARYEV_PLACEHOLDER_H
+#define COURSE_WORK_DARYEV_PLACEHOLDER_H
+
+#endif //COURSE_WORK_DARYEV_PLACEHOLDER_H
