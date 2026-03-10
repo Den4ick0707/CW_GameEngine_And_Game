@@ -79,14 +79,11 @@ namespace Engine::Graphics {
     void Renderer2D::BeginScene(const OrthographicCamera& camera) {
         s_Data.FlatColorShader->Bind();
         s_Data.FlatColorShader->SetMat4("u_ViewProjection", camera.GetViewProjectionMatrix());
+        // FIX: прибрано SetMat4("u_Transform") — шейдер більше не має цього uniform'у,
+        // виклик спамив [WARN] щокадру
 
-        // FIX: також скидаємо матрицю об'єкту на одиничну —
-        // шейдер очікує u_Transform, але в батч-рендері трансформація
-        // вже запечена у вершини, тому передаємо identity
-        s_Data.FlatColorShader->SetMat4("u_Transform", glm::mat4(1.0f));
-
-        s_Data.QuadIndexCount       = 0;
-        s_Data.QuadVertexBufferPtr  = s_Data.QuadVertexBufferBase;
+        s_Data.QuadIndexCount      = 0;
+        s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
     }
 
     void Renderer2D::EndScene() {
@@ -115,7 +112,9 @@ namespace Engine::Graphics {
     }
 
     void Renderer2D::FlushAndReset() {
-        EndScene();
+        // FIX: викликаємо Flush() напряму, а не EndScene() —
+        // EndScene() → Flush() → (переповнення) → FlushAndReset() → EndScene() = нескінченна рекурсія
+        Flush();
         s_Data.QuadIndexCount      = 0;
         s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
     }
