@@ -9,6 +9,7 @@
 #include "component_pool.h"
 #include <unordered_map>
 #include <typeindex>
+#include <algorithm>
 #include <memory>
 #include <functional>
 

@@ -11,7 +11,6 @@ namespace Engine::Core {
         Application();
         virtual ~Application();
 
-        // Основний цикл
         void Run();
 
         virtual void Update(float dt)=0;

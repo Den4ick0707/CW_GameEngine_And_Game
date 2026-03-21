@@ -10,11 +10,12 @@
         add_compile_definitions(CW_ENABLE_LOGGING)
     endif()
 
+
     add_executable(${PROJECT_NAME} src/main.cpp )
     target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE cw_engine)
+    target_link_libraries(${PROJECT_NAME} PRIVATE cw_engine )
 
     add_custom_command(TARGET cw_game POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
