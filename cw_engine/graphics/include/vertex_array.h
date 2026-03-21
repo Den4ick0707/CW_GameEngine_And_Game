@@ -1,59 +1,43 @@
-#ifndef CW_ENGINE_GRAPHICS_VERTEX_ARRAY_H
-#define CW_ENGINE_GRAPHICS_VERTEX_ARRAY_H
+#pragma once
 
 #include "vertex_buffer.h"
-#include "index_buffer.h" // Переконайся, що цей файл існує
+#include "index_buffer.h"
 #include <vector>
 #include <memory>
 
 namespace Engine::Graphics {
-    /// @brief A container object that holds references to Vertex Buffers and an Index Buffer.
-    /// @details
-    /// The Vertex Array Object (VAO) stores the state of vertex attribute configurations.
-    /// Instead of setting up layout (glVertexAttribPointer) every frame, you do it once,
-    /// and then just Bind() the VAO.
-    ///
-    /// Usage flow:
-    /// 1. Create VAO.
-    /// 2. Bind VAO.
-    /// 3. Create VBO -> Set Layout -> Add to VAO.
-    /// 4. Create IBO -> Set to VAO.
+
+    /// @brief OpenGL Vertex Array Object (VAO).
+    /// @details Зберігає конфігурацію атрибутів вершин.
+    /// Після налаштування достатньо викликати Bind() перед малюванням.
     class VertexArray {
     public:
-        /// @brief Creates an empty Vertex Array Object on the GPU.
         VertexArray();
-
-        /// @brief Destroys the VAO and frees GPU memory.
         ~VertexArray();
 
-        /// @brief Binds this VAO. All subsequent draw calls will use this configuration.
-        void Bind() const;
+        VertexArray(const VertexArray&)            = delete;
+        VertexArray& operator=(const VertexArray&) = delete;
 
-        /// @brief Unbinds the VAO (binds 0).
+        void Bind()   const;
         void Unbind() const;
 
-        /// @brief Adds a Vertex Buffer and configures its attributes based on its layout.
-        /// @param vertexBuffer Shared pointer to the VBO. The VAO keeps a reference to it.
-        void AddVertexBuffer(const std::shared_ptr<VertexBuffer> &vertexBuffer);
+        /// @brief Додати VBO і автоматично налаштувати атрибути за його Layout.
+        void AddVertexBuffer(const std::shared_ptr<VertexBuffer>& vbo);
 
-        /// @brief Sets the Index Buffer for this VAO.
-        /// @note The Element Array Buffer binding is stored within the VAO state.
-        /// @param indexBuffer Shared pointer to the IBO.
-        void SetIndexBuffer(const std::shared_ptr<IndexBuffer> &indexBuffer);
+        /// @brief Встановити IBO (прив'язується до VAO стану).
+        void SetIndexBuffer(const std::shared_ptr<IndexBuffer>& ibo);
 
-        /// @brief Returns the list of attached Vertex Buffers.
-        const std::vector<std::shared_ptr<VertexBuffer> > &GetVertexBuffers() const { return m_VertexBuffers; }
+        [[nodiscard]] const std::vector<std::shared_ptr<VertexBuffer>>& GetVertexBuffers() const { return m_VBOs; }
+        [[nodiscard]] const std::shared_ptr<IndexBuffer>&               GetIndexBuffer()   const { return m_IBO; }
 
-        /// @brief Returns the attached Index Buffer.
-        const std::shared_ptr<IndexBuffer> &GetIndexBuffer() const { return m_IndexBuffer; }
+        [[nodiscard]] uint32_t GetRendererID() const { return m_RendererID; }
 
     private:
-        uint32_t m_ID; ///< OpenGL Render ID.
-        uint32_t m_VertexBufferIndex = 0; ///< Tracks the current attribute index (location) for the shader.
+        uint32_t m_RendererID        = 0;
+        uint32_t m_AttribIndex       = 0;   // поточний location для glVertexAttribPointer
 
-        std::vector<std::shared_ptr<VertexBuffer> > m_VertexBuffers;
-        std::shared_ptr<IndexBuffer> m_IndexBuffer;
+        std::vector<std::shared_ptr<VertexBuffer>> m_VBOs;
+        std::shared_ptr<IndexBuffer>               m_IBO;
     };
-}
 
-#endif // CW_ENGINE_GRAPHICS_VERTEX_ARRAY_H
+} // namespace Engine::Graphics

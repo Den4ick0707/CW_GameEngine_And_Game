@@ -2,7 +2,6 @@
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
-#include "../../core/include/logger.h"
 
 namespace Engine::Graphics {
 
@@ -15,111 +14,89 @@ namespace Engine::Graphics {
     }
 
     void ShaderProgram::AttachShader(const ShaderModule& shader) {
+        if (!shader.IsValid()) {
+            std::cerr << "[ShaderProgram] Tried to attach invalid shader module.\n";
+            return;
+        }
         glAttachShader(m_RendererID, shader.GetID());
-        m_AttachedShaders.push_back(shader.GetID());
+        m_Attached.push_back(shader.GetID());
     }
 
     void ShaderProgram::Link() {
         glLinkProgram(m_RendererID);
+        CheckLinkErrors();
 
-        int success;
-        glGetProgramiv(m_RendererID, GL_LINK_STATUS, &success);
-
-        // FIX: встановлюємо прапорець і не використовуємо зламану програму
-        if (!success) {
-            char infoLog[1024];
-            glGetProgramInfoLog(m_RendererID, sizeof(infoLog), nullptr, infoLog);
-            CW_ERROR_LOG("ShaderProgram linking failed:\n{0}", infoLog);
-            m_IsLinked = false;
-        } else {
-            m_IsLinked = true;
-        }
-
-        for (auto id : m_AttachedShaders) {
+        // Detach після лінковки — шейдери більше не потрібні програмі
+        for (auto id : m_Attached)
             glDetachShader(m_RendererID, id);
+        m_Attached.clear();
+    }
+
+    void ShaderProgram::CheckLinkErrors() {
+        int success = 0;
+        glGetProgramiv(m_RendererID, GL_LINK_STATUS, &success);
+        m_Linked = (success == GL_TRUE);
+        if (!m_Linked) {
+            char log[1024];
+            glGetProgramInfoLog(m_RendererID, sizeof(log), nullptr, log);
+            std::cerr << "[ShaderProgram] Link error:\n" << log << "\n";
         }
-        m_AttachedShaders.clear();
     }
 
     void ShaderProgram::Bind() const {
-        // FIX: не біндимо зламану програму
-        if (!m_IsLinked) {
-            CW_WARN_LOG("Attempted to Bind a shader program that failed to link!");
+        if (!m_Linked) {
+            std::cerr << "[ShaderProgram] Bind() called on unlinked program!\n";
             return;
         }
         glUseProgram(m_RendererID);
     }
 
-    void ShaderProgram::Unbind() const {
-        glUseProgram(0);
-    }
-
-    // ---------------------------------------------------------------------------
-    // Uniform Setters
-    // ---------------------------------------------------------------------------
-
-    void ShaderProgram::SetInt(const std::string& name, int value) {
-        glUniform1i(GetUniformLocation(name), value);
-    }
-
-    void ShaderProgram::SetInt2(const std::string& name, int v1, int v2) {
-        glUniform2i(GetUniformLocation(name), v1, v2);
-    }
-
-    void ShaderProgram::SetInt3(const std::string& name, int v1, int v2, int v3) {
-        glUniform3i(GetUniformLocation(name), v1, v2, v3);
-    }
-
-    void ShaderProgram::SetInt4(const std::string& name, int v1, int v2, int v3, int v4) {
-        glUniform4i(GetUniformLocation(name), v1, v2, v3, v4);
-    }
-
-    void ShaderProgram::SetIntArray(const std::string& name, int* values, uint32_t count) {
-        glUniform1iv(GetUniformLocation(name), count, values);
-    }
-
-    void ShaderProgram::SetFloat(const std::string& name, float value) {
-        glUniform1f(GetUniformLocation(name), value);
-    }
-
-    void ShaderProgram::SetFloat2(const std::string& name, float v1, float v2) {
-        glUniform2f(GetUniformLocation(name), v1, v2);
-    }
-
-    void ShaderProgram::SetFloat3(const std::string& name, float v1, float v2, float v3) {
-        glUniform3f(GetUniformLocation(name), v1, v2, v3);
-    }
-
-    void ShaderProgram::SetFloat4(const std::string& name, float v1, float v2, float v3, float v4) {
-        glUniform4f(GetUniformLocation(name), v1, v2, v3, v4);
-    }
-
-    void ShaderProgram::SetDouble2(const std::string& name, double v1, double v2) {
-        glUniform2d(GetUniformLocation(name), v1, v2);
-    }
-
-    void ShaderProgram::SetDouble3(const std::string& name, double v1, double v2, double v3) {
-        glUniform3d(GetUniformLocation(name), v1, v2, v3);
-    }
-
-    void ShaderProgram::SetDouble4(const std::string& name, double v1, double v2, double v3, double v4) {
-        glUniform4d(GetUniformLocation(name), v1, v2, v3, v4);
-    }
-
-    void ShaderProgram::SetMat4(const std::string& name, const glm::mat4& matrix) {
-        glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(matrix));
-    }
+    void ShaderProgram::Unbind() const { glUseProgram(0); }
 
     int ShaderProgram::GetUniformLocation(const std::string& name) {
-        auto it = m_UniformLocationCache.find(name);
-        if (it != m_UniformLocationCache.end())
-            return it->second;
+        auto it = m_Cache.find(name);
+        if (it != m_Cache.end()) return it->second;
 
-        int location = glGetUniformLocation(m_RendererID, name.c_str());
-        if (location == -1) {
-            CW_WARN_LOG("Uniform '{0}' not found in shader program!", name);
-        }
-        m_UniformLocationCache[name] = location;
-        return location;
+        int loc = glGetUniformLocation(m_RendererID, name.c_str());
+        if (loc == -1)
+            std::cerr << "[ShaderProgram] Uniform not found: '" << name << "'\n";
+
+        m_Cache[name] = loc;
+        return loc;
     }
-}
+
+    // ── Setters ──────────────────────────────────────────────────────────────
+
+    void ShaderProgram::SetBool (const std::string& n, bool  v) { glUniform1i (GetUniformLocation(n), v); }
+    void ShaderProgram::SetInt  (const std::string& n, int   v) { glUniform1i (GetUniformLocation(n), v); }
+    void ShaderProgram::SetFloat(const std::string& n, float v) { glUniform1f (GetUniformLocation(n), v); }
+
+    void ShaderProgram::SetIntArray(const std::string& n, int* v, uint32_t count) {
+        glUniform1iv(GetUniformLocation(n), static_cast<GLsizei>(count), v);
+    }
+
+    void ShaderProgram::SetFloat2(const std::string& n, float x, float y)
+        { glUniform2f(GetUniformLocation(n), x, y); }
+
+    void ShaderProgram::SetFloat3(const std::string& n, float x, float y, float z)
+        { glUniform3f(GetUniformLocation(n), x, y, z); }
+
+    void ShaderProgram::SetFloat4(const std::string& n, float x, float y, float z, float w)
+        { glUniform4f(GetUniformLocation(n), x, y, z, w); }
+
+    void ShaderProgram::SetVec2(const std::string& n, const glm::vec2& v)
+        { glUniform2fv(GetUniformLocation(n), 1, glm::value_ptr(v)); }
+
+    void ShaderProgram::SetVec3(const std::string& n, const glm::vec3& v)
+        { glUniform3fv(GetUniformLocation(n), 1, glm::value_ptr(v)); }
+
+    void ShaderProgram::SetVec4(const std::string& n, const glm::vec4& v)
+        { glUniform4fv(GetUniformLocation(n), 1, glm::value_ptr(v)); }
+
+    void ShaderProgram::SetMat3(const std::string& n, const glm::mat3& m)
+        { glUniformMatrix3fv(GetUniformLocation(n), 1, GL_FALSE, glm::value_ptr(m)); }
+
+    void ShaderProgram::SetMat4(const std::string& n, const glm::mat4& m)
+        { glUniformMatrix4fv(GetUniformLocation(n), 1, GL_FALSE, glm::value_ptr(m)); }
+
+} // namespace Engine::Graphics

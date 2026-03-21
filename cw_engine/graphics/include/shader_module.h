@@ -1,62 +1,42 @@
-#ifndef CW_ENGINE_GRAPHICS_SHADER_MODULE_H
-#define CW_ENGINE_GRAPHICS_SHADER_MODULE_H
+#pragma once
 
 #include <string>
 #include <filesystem>
-#include <cstdint> // Важливо для uint32_t
+#include <cstdint>
 
 namespace Engine::Graphics {
 
-    /// @brief Represents the type of the shader stage.
     enum class ShaderType {
-        VERTEX,
-        FRAGMENT,
-        GEOMETRY,
-        TESSELLATION_CONTROL,    // Уточнення для Tessellation
-        TESSELLATION_EVALUATION, // Уточнення для Tessellation
-        COMPUTE
+        Vertex,
+        Fragment,
+        Geometry,
+        TessControl,
+        TessEvaluation,
+        Compute
     };
 
-    /// @brief Represents a single compiled shader object (e.g., Vertex Shader).
-    /// @details
-    /// This class handles loading source code from disk, compiling it,
-    /// and checking for errors. It does NOT link the program.
-    /// Used as a building block for ShaderProgram.
+    /// @brief Один скомпільований шейдерний об'єкт.
     class ShaderModule {
     public:
-        /// @brief Loads and compiles a shader from a file.
-        /// @param source Path to the shader file (.vert, .frag, etc.).
-        /// @param shader_type The stage of the pipeline (Vertex, Fragment...).
-        ShaderModule(const std::filesystem::path &source, ShaderType shader_type);
-
-        /// @brief Destroys the shader object (glDeleteShader).
+        ShaderModule(const std::filesystem::path& path, ShaderType type);
         ~ShaderModule();
 
-        // Prevent copying (ShaderModule owns the GL ID)
-        ShaderModule(const ShaderModule &other) = delete;
-        ShaderModule &operator=(const ShaderModule &other) = delete;
+        ShaderModule(const ShaderModule&)            = delete;
+        ShaderModule& operator=(const ShaderModule&) = delete;
 
-        // Allow moving (optional, but good practice)
         ShaderModule(ShaderModule&& other) noexcept;
         ShaderModule& operator=(ShaderModule&& other) noexcept;
 
-        /// @brief Gets the shader type.
+        [[nodiscard]] uint32_t   GetID()   const { return m_ID;   }
         [[nodiscard]] ShaderType GetType() const { return m_Type; }
-
-        /// @brief Gets the OpenGL ID of the compiled shader.
-        [[nodiscard]] uint32_t GetID() const { return m_ID; }
+        [[nodiscard]] bool       IsValid() const { return m_ID != 0; }
 
     private:
-        /// @brief Reads file content into a string.
-        std::string ReadFromFile(const std::filesystem::path &path);
+        std::string ReadFile(const std::filesystem::path& path);
+        void        CheckErrors(const std::string& typeStr);
 
-        /// @brief Checks OpenGL compilation status.
-        void CheckCompileErrors(uint32_t shader, const std::string &type);
-
-    private:
-        uint32_t m_ID = 0;
-        ShaderType m_Type;
+        uint32_t   m_ID   = 0;
+        ShaderType m_Type = ShaderType::Vertex;
     };
-}
 
-#endif // CW_ENGINE_GRAPHICS_SHADER_MODULE_H
+} // namespace Engine::Graphics

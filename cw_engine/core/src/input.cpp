@@ -8,64 +8,60 @@ namespace Engine::Core {
         return instance;
     }
 
-    void Input::BindAction(const std::string& actionName, KeyCode key) {
-        int glfwKey              = static_cast<int>(key);
-        m_KeyBindings[actionName] = glfwKey;
-        m_KeyStates[glfwKey]      = GLFW_RELEASE;
+    void Input::BindAction(const std::string& name, KeyCode key) {
+        int k = static_cast<int>(key);
+        m_KeyBindings[name] = k;
+        m_KeyStates.emplace(k, GLFW_RELEASE);
     }
 
-    void Input::BindAction(const std::string& actionName, MouseCode button) {
-        int glfwButton                = static_cast<int>(button);
-        m_MouseBindings[actionName]   = glfwButton;
-        m_MouseStates[glfwButton]     = GLFW_RELEASE;
+    void Input::BindAction(const std::string& name, MouseCode btn) {
+        int b = static_cast<int>(btn);
+        m_MouseBindings[name] = b;
+        m_MouseStates.emplace(b, GLFW_RELEASE);
     }
 
-    void Input::Subscribe(const std::string& actionName, ActionCallback callback) {
-        m_Callbacks[actionName].push_back(std::move(callback));
+    void Input::Subscribe(const std::string& name, ActionCallback cb) {
+        m_Callbacks[name].push_back(std::move(cb));
     }
 
-    void Input::ClearSubscriptions() {
-        m_Callbacks.clear();
+    void Input::ClearSubscriptions() { m_Callbacks.clear(); }
+
+    bool Input::IsKeyHeld(KeyCode key) const {
+        auto it = m_KeyStates.find(static_cast<int>(key));
+        return it != m_KeyStates.end() && it->second == GLFW_PRESS;
     }
 
-    void Input::Dispatch(const std::string& actionName) {
-        auto it = m_Callbacks.find(actionName);
+    bool Input::IsMouseHeld(MouseCode btn) const {
+        auto it = m_MouseStates.find(static_cast<int>(btn));
+        return it != m_MouseStates.end() && it->second == GLFW_PRESS;
+    }
+
+    void Input::Dispatch(const std::string& name) {
+        auto it = m_Callbacks.find(name);
         if (it == m_Callbacks.end()) return;
-
-        for (const auto& func : it->second) {
-            if (func) func();
-        }
+        for (const auto& fn : it->second)
+            if (fn) fn();
     }
 
     void Input::Update() {
-        auto* window = glfwGetCurrentContext();
-        if (!window) return;
+        GLFWwindow* win = glfwGetCurrentContext();
+        if (!win) return;
 
         for (auto& [name, key] : m_KeyBindings) {
-            int newState = glfwGetKey(window, key);
-
-            // FIX: безпечний пошук — явно ініціалізуємо стан якщо ключ новий
-            auto stateIt = m_KeyStates.find(key);
-            int oldState = (stateIt != m_KeyStates.end()) ? stateIt->second : GLFW_RELEASE;
-
-            if (newState == GLFW_PRESS && oldState == GLFW_RELEASE) {
+            int cur = glfwGetKey(win, key);
+            int old = m_KeyStates.count(key) ? m_KeyStates[key] : GLFW_RELEASE;
+            if (cur == GLFW_PRESS && old == GLFW_RELEASE)
                 Dispatch(name);
-            }
-
-            m_KeyStates[key] = newState;
+            m_KeyStates[key] = cur;
         }
 
-        for (auto& [name, button] : m_MouseBindings) {
-            int newState = glfwGetMouseButton(window, button);
-
-            auto stateIt = m_MouseStates.find(button);
-            int oldState = (stateIt != m_MouseStates.end()) ? stateIt->second : GLFW_RELEASE;
-
-            if (newState == GLFW_PRESS && oldState == GLFW_RELEASE) {
+        for (auto& [name, btn] : m_MouseBindings) {
+            int cur = glfwGetMouseButton(win, btn);
+            int old = m_MouseStates.count(btn) ? m_MouseStates[btn] : GLFW_RELEASE;
+            if (cur == GLFW_PRESS && old == GLFW_RELEASE)
                 Dispatch(name);
-            }
-
-            m_MouseStates[button] = newState;
+            m_MouseStates[btn] = cur;
         }
     }
-}
+
+} // namespace Engine::Core

@@ -4,54 +4,51 @@
 
 namespace Engine::Graphics {
 
-    /// @brief A 2D Orthographic Camera.
-    /// @details
-    /// This camera uses orthographic projection, meaning there is no perspective
-    /// (objects don't get smaller as they move away on the Z axis).
-    /// Perfect for 2D games, UI rendering, and isometric views.
+    /// @brief 2D ортографічна камера.
     class OrthographicCamera {
     public:
-        /// @brief Creates an orthographic camera with specific boundaries.
         OrthographicCamera(float left, float right, float bottom, float top);
 
-        /// @brief Updates the projection boundaries (useful when the window is resized).
+        /// @brief Оновити межі проекції (при зміні розміру вікна).
         void SetProjection(float left, float right, float bottom, float top);
 
+        // ── Позиція та поворот ────────────────────────────────────────────
+
         [[nodiscard]] const glm::vec3& GetPosition() const { return m_Position; }
+        [[nodiscard]] float            GetRotation() const { return m_Rotation; }
 
-        /// @brief Sets the camera position and rotation at once to avoid double recalculation.
-        void SetTransform(const glm::vec3& position, float rotation) {
-            m_Position = position;
-            m_Rotation = rotation;
-            RecalculateViewMatrix();
+        void SetPosition(const glm::vec3& pos) {
+            m_Position = pos;
+            Recalculate();
         }
 
-        void SetPosition(const glm::vec3& position) {
-            m_Position = position;
-            RecalculateViewMatrix();
+        void SetRotation(float degrees) {
+            m_Rotation = degrees;
+            Recalculate();
         }
 
-        [[nodiscard]] float GetRotation() const { return m_Rotation; }
-
-        void SetRotation(float rotation) {
-            m_Rotation = rotation;
-            RecalculateViewMatrix();
+        /// @brief Встановити позицію і поворот одночасно (один Recalculate).
+        void SetTransform(const glm::vec3& pos, float degrees) {
+            m_Position = pos;
+            m_Rotation = degrees;
+            Recalculate();
         }
 
-        [[nodiscard]] const glm::mat4& GetProjectionMatrix()     const { return m_ProjectionMatrix; }
-        [[nodiscard]] const glm::mat4& GetViewMatrix()           const { return m_ViewMatrix; }
-        [[nodiscard]] const glm::mat4& GetViewProjectionMatrix() const { return m_ViewProjectionMatrix; }
+        // ── Матриці ───────────────────────────────────────────────────────
+
+        [[nodiscard]] const glm::mat4& GetProjectionMatrix()     const { return m_Projection; }
+        [[nodiscard]] const glm::mat4& GetViewMatrix()           const { return m_View; }
+        [[nodiscard]] const glm::mat4& GetViewProjectionMatrix() const { return m_ViewProjection; }
 
     private:
-        /// @brief Recalculates the View and ViewProjection matrices.
-        void RecalculateViewMatrix();
+        void Recalculate();
 
-    private:
-        glm::mat4 m_ProjectionMatrix;
-        glm::mat4 m_ViewMatrix;
-        glm::mat4 m_ViewProjectionMatrix;
+        glm::mat4 m_Projection;
+        glm::mat4 m_View           = glm::mat4(1.0f);
+        glm::mat4 m_ViewProjection = glm::mat4(1.0f);
 
         glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };
-        float     m_Rotation = 0.0f; ///< Camera rotation on the Z axis (in degrees)
+        float     m_Rotation = 0.0f;
     };
-}
+
+} // namespace Engine::Graphics

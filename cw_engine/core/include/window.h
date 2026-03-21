@@ -1,5 +1,4 @@
-#ifndef CW_ENGINE_CORE_WINDOW_H
-#define CW_ENGINE_CORE_WINDOW_H
+#pragma once
 
 #include <string>
 #include <functional>
@@ -7,64 +6,50 @@
 struct GLFWwindow;
 
 namespace Engine::Core {
-    /// @brief Структура для початкових налаштувань вікна
-    struct WindowProps {
-        std::string Title;
-        int Width;
-        int Height;
 
-        WindowProps(const std::string &title = "CW Engine",
-                    int width = 1280,
-                    int height = 720)
-            : Title(title), Width(width), Height(height) {
-        }
+    struct WindowProps {
+        std::string Title  = "CW Engine";
+        int         Width  = 1280;
+        int         Height = 720;
+
+        WindowProps() = default;
+        WindowProps(std::string title, int w, int h)
+            : Title(std::move(title)), Width(w), Height(h) {}
     };
 
+    /// @brief RAII-обгортка над GLFW вікном і OpenGL контекстом.
     class Window {
     public:
-        /// @brief Створює вікно з заданими параметрами
-        explicit Window(const WindowProps &props = WindowProps());
-
+        explicit Window(const WindowProps& props = {});
         ~Window();
 
-        /// @brief Оновлює вікно (PollEvents + SwapBuffers)
+        Window(const Window&)            = delete;
+        Window& operator=(const Window&) = delete;
+
+        /// @brief PollEvents + SwapBuffers.
         void Update();
 
-        /// @brief Отримати ширину вікна
-        [[nodiscard]] int GetWidth() const { return m_Data.Width; }
-
-        /// @brief Отримати висоту вікна
-        [[nodiscard]] int GetHeight() const { return m_Data.Height; }
-
-        /// @brief Увімкнути/Вимкнути вертикальну синхронізацію
         void SetVSync(bool enabled);
 
-        /// @brief Перевірити стан VSync
-        [[nodiscard]] bool IsVSync() const;
+        [[nodiscard]] int  GetWidth()    const { return m_Data.Width;  }
+        [[nodiscard]] int  GetHeight()   const { return m_Data.Height; }
+        [[nodiscard]] bool IsVSync()     const { return m_Data.VSync;  }
+        [[nodiscard]] bool ShouldClose() const;
 
-        /// @brief Отримати нативний вказівник (для ImGui або інших хаків)
-        [[nodiscard]] GLFWwindow *GetNativeWindow() const { return m_Window; }
-
-        /// @brief
-        [[nodiscard]] int ShouldClose() const ;
+        [[nodiscard]] GLFWwindow* GetNativeWindow() const { return m_Window; }
 
     private:
-        /// @brief Внутрішня ініціалізація
-        void Init(const WindowProps &props);
-
-        /// @brief Очищення ресурсів
+        void Init(const WindowProps& props);
         void Shutdown();
 
-        GLFWwindow *m_Window;
+        GLFWwindow* m_Window = nullptr;
 
         struct WindowData {
             std::string Title;
-            int Width, Height;
-            bool VSync;
-        };
-
-        WindowData m_Data;
+            int  Width  = 1280;
+            int  Height = 720;
+            bool VSync  = false;
+        } m_Data;
     };
-}
 
-#endif //CW_ENGINE_CORE_WINDOW_H
+} // namespace Engine::Core

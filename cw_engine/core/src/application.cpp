@@ -1,31 +1,35 @@
 #include "application.h"
-
 #include "logger.h"
 #include "input.h"
 #include "time_manager.h"
 
 namespace Engine::Core {
-    Application *Application::s_Instance = nullptr;
+
+    Application* Application::s_Instance = nullptr;
 
     Application::Application() {
         s_Instance = this;
 
-        Logger::GetInstance().Init(LogLevel::Trace, LogTarget::Console | LogTarget::File);
-        CW_INFO_LOG("Engine Systems Initializing...");
+        Logger::GetInstance().Init(
+            LogLevel::Trace,
+            LogTarget::Console | LogTarget::File,
+            "engine.log");
 
-        WindowProps props("CW Engine Game", 1280, 720);
-        m_Window = std::make_unique<Window>(props);
+        CW_INFO_LOG("=== CW Engine v0.1 Starting ===");
 
+        m_Window = std::make_unique<Window>(WindowProps("CW Engine", 1280, 720));
         Time::Init();
 
-        auto &input = Input::Get();
+        // Escape завжди закриває гру
+        auto& input = Input::Get();
         input.BindAction("Exit", KeyCode::Escape);
+        input.Subscribe("Exit", [this]() { Quit(); });
 
-        CW_INFO_LOG("All Systems Ready.");
+        CW_INFO_LOG("Application initialized.");
     }
 
     Application::~Application() {
-        CW_INFO_LOG("Engine Shutting Down...");
+        CW_INFO_LOG("=== CW Engine Shutdown ===");
     }
 
     void Application::Run() {
@@ -35,13 +39,13 @@ namespace Engine::Core {
 
             Input::Get().Update();
 
-            if (m_Window->ShouldClose()) {
+            if (m_Window->ShouldClose())
                 m_Running = false;
-            }
 
             Update(dt);
             Render();
             m_Window->Update();
         }
     }
-}
+
+} // namespace Engine::Core

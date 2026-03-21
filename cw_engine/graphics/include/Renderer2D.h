@@ -7,6 +7,8 @@
 
 namespace Engine::Graphics {
 
+    /// @brief Batch renderer для 2D об'єктів.
+    /// @details До 10 000 квадратів та 32 текстури за один draw call.
     class Renderer2D {
     public:
         static void Init();
@@ -15,31 +17,46 @@ namespace Engine::Graphics {
         static void BeginScene(const OrthographicCamera& camera);
         static void EndScene();
 
-        // --- Кольоровий квадрат (texIndex = 0 → білий піксель, отже колір не змінюється) ---
-        static void DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color);
-        static void DrawQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color);
+        // ── DrawQuad — кольоровий ─────────────────────────────────────────
+        static void DrawQuad(const glm::vec2& pos, const glm::vec2& size,
+                             const glm::vec4& color);
+        static void DrawQuad(const glm::vec3& pos, const glm::vec2& size,
+                             const glm::vec4& color);
 
-        // --- Текстурований квадрат ---
-        static void DrawQuad(const glm::vec2& position, const glm::vec2& size,
-                             const std::shared_ptr<Texture>& texture,
-                             const glm::vec4& tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+        // ── DrawQuad — текстурований ──────────────────────────────────────
+        static void DrawQuad(const glm::vec2& pos, const glm::vec2& size,
+                             const std::shared_ptr<Texture>& tex,
+                             const glm::vec4& tint = glm::vec4(1.0f));
+        static void DrawQuad(const glm::vec3& pos, const glm::vec2& size,
+                             const std::shared_ptr<Texture>& tex,
+                             const glm::vec4& tint = glm::vec4(1.0f));
 
-        static void DrawQuad(const glm::vec3& position, const glm::vec2& size,
-                             const std::shared_ptr<Texture>& texture,
-                             const glm::vec4& tint = { 1.0f, 1.0f, 1.0f, 1.0f });
+        // ── DrawQuad — з поворотом ────────────────────────────────────────
+        static void DrawRotatedQuad(const glm::vec3& pos, const glm::vec2& size,
+                                    float rotationDeg, const glm::vec4& color);
+        static void DrawRotatedQuad(const glm::vec3& pos, const glm::vec2& size,
+                                    float rotationDeg,
+                                    const std::shared_ptr<Texture>& tex,
+                                    const glm::vec4& tint = glm::vec4(1.0f));
 
-        // --- Статистика (для ImGui overlay) ---
+        // ── Статистика ────────────────────────────────────────────────────
         struct Statistics {
             uint32_t DrawCalls = 0;
             uint32_t QuadCount = 0;
+            uint32_t VertexCount() const { return QuadCount * 4; }
+            uint32_t IndexCount()  const { return QuadCount * 6; }
         };
 
-        static void      ResetStats();
+        static void       ResetStats();
         static Statistics GetStats();
+        static void FlushAndReset();
+
 
     private:
         static void Flush();
-        static void FlushAndReset();
+        static void SubmitQuad(const glm::mat4& transform,
+                               const glm::vec4& color,
+                               float texIndex);
     };
 
-}
+} // namespace Engine::Graphics

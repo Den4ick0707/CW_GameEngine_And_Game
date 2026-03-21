@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.1.2)
+cmake_minimum_required(VERSION 3.16)
 project(cw_graphics)
 
 file(GLOB_RECURSE SOURCES src/*.cpp)
@@ -12,6 +12,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         glfw
         glad_lib
         glm_lib
+        stb_lib
         imgui_lib
 )
+
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/graphics_pch.h)

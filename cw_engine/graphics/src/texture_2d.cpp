@@ -1,102 +1,121 @@
 #include "texture_2d.h"
-#include "../../core/include/logger.h"
 #include <glad/glad.h>
+#include <iostream>
 
-// FIX: STB_IMAGE_IMPLEMENTATION має бути рівно в одному .cpp файлі
-// Шлях виправлено — директорія stb/ має бути додана в CMakeLists через
-// target_include_directories, тоді тут просто: #include <stb_image.h>
+// STB_IMAGE_IMPLEMENTATION має бути рівно в одному .cpp файлі
 #define STB_IMAGE_IMPLEMENTATION
-#include <../stb/stb_image.h>
+#include <stb_image.h>
 
 namespace Engine::Graphics {
 
-    static GLenum GetGLFilter(TextureFilter filter) {
-        return filter == TextureFilter::Linear ? GL_LINEAR : GL_NEAREST;
+    static GLenum ToGLFilter(TextureFilter f) {
+        return f == TextureFilter::Linear ? GL_LINEAR : GL_NEAREST;
     }
 
-    static GLenum GetGLWrap(TextureWrap wrap) {
-        return wrap == TextureWrap::Repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
+    static GLenum ToGLWrap(TextureWrap w) {
+        switch (w) {
+            case TextureWrap::Repeat:         return GL_REPEAT;
+            case TextureWrap::ClampToEdge:    return GL_CLAMP_TO_EDGE;
+            case TextureWrap::MirroredRepeat: return GL_MIRRORED_REPEAT;
+        }
+        return GL_REPEAT;
     }
+
+    // ── З файлу ──────────────────────────────────────────────────────────────
 
     Texture::Texture(const std::string& path, const TextureSettings& settings)
         : m_Path(path)
     {
         stbi_set_flip_vertically_on_load(1);
 
-        int width, height, channels;
-        unsigned char* data = stbi_load(path.c_str(), &width, &height, &channels, 0);
+        int w, h, ch;
+        unsigned char* data = stbi_load(path.c_str(), &w, &h, &ch, 0);
 
-        if (data) {
-            m_Width    = static_cast<uint32_t>(width);
-            m_Height   = static_cast<uint32_t>(height);
-            m_Channels = static_cast<uint32_t>(channels);
-
-            if (channels == 4) {
-                m_InternalFormat = GL_RGBA8;
-                m_DataFormat     = GL_RGBA;
-            } else if (channels == 3) {
-                m_InternalFormat = GL_RGB8;
-                m_DataFormat     = GL_RGB;
-            } else {
-                CW_ERROR_LOG("Unsupported texture channel count: {0}", channels);
-                stbi_image_free(data);
-                return;
-            }
-
-            glGenTextures(1, &m_RendererID);
-            glBindTexture(GL_TEXTURE_2D, m_RendererID);
-
-            ApplySettings(settings);
-
-            glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat,
-                         m_Width, m_Height, 0,
-                         m_DataFormat, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-
-            stbi_image_free(data);
-        } else {
-            CW_ERROR_LOG("Failed to load texture: {0}", path);
+        if (!data) {
+            std::cerr << "[Texture] Failed to load: " << path << "\n";
+            return;
         }
+
+        uint32_t internalFmt = 0, dataFmt = 0;
+        if      (ch == 4) { internalFmt = GL_RGBA8; dataFmt = GL_RGBA; }
+        else if (ch == 3) { internalFmt = GL_RGB8;  dataFmt = GL_RGB;  }
+        else if (ch == 1) { internalFmt = GL_R8;    dataFmt = GL_RED;  }
+        else {
+            std::cerr << "[Texture] Unsupported channel count: " << ch << "\n";
+            stbi_image_free(data);
+            return;
+        }
+
+        Create(static_cast<uint32_t>(w), static_cast<uint32_t>(h),
+               internalFmt, dataFmt, data, settings);
+
+        stbi_image_free(data);
     }
 
-    Texture::Texture(uint32_t width, uint32_t height, const void* data, const TextureSettings& settings)
-        : m_Width(width), m_Height(height),
-          m_InternalFormat(GL_RGBA8), m_DataFormat(GL_RGBA)
+    // ── З масиву пікселів ─────────────────────────────────────────────────────
+
+    Texture::Texture(uint32_t width, uint32_t height,
+                     const void* data, const TextureSettings& settings)
     {
+        Create(width, height, GL_RGBA8, GL_RGBA, data, settings);
+    }
+
+    // ── Загальна ініціалізація ────────────────────────────────────────────────
+
+    void Texture::Create(uint32_t width, uint32_t height,
+                         uint32_t internalFmt, uint32_t dataFmt,
+                         const void* data, const TextureSettings& settings)
+    {
+        m_Width       = width;
+        m_Height      = height;
+        m_InternalFmt = internalFmt;
+        m_DataFmt     = dataFmt;
+
         glGenTextures(1, &m_RendererID);
         glBindTexture(GL_TEXTURE_2D, m_RendererID);
 
         ApplySettings(settings);
 
-        // data == nullptr — OpenGL просто виділяє пам'ять (корисно для Framebuffer)
-        glTexImage2D(GL_TEXTURE_2D, 0, m_InternalFormat,
-                     m_Width, m_Height, 0,
-                     m_DataFormat, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0,
+                     static_cast<GLint>(m_InternalFmt),
+                     static_cast<GLsizei>(m_Width),
+                     static_cast<GLsizei>(m_Height),
+                     0, m_DataFmt, GL_UNSIGNED_BYTE, data);
+
+        if (settings.GenMipmaps && data)
+            glGenerateMipmap(GL_TEXTURE_2D);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     Texture::~Texture() {
-        glDeleteTextures(1, &m_RendererID);
+        if (m_RendererID)
+            glDeleteTextures(1, &m_RendererID);
     }
 
-    void Texture::ApplySettings(const TextureSettings& settings) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GetGLFilter(settings.MinFilter));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GetGLFilter(settings.MagFilter));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     GetGLWrap(settings.WrapS));
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     GetGLWrap(settings.WrapT));
+    void Texture::ApplySettings(const TextureSettings& s) {
+        GLenum minFilter = ToGLFilter(s.MinFilter);
+        // Якщо міпмапи — використовуємо LINEAR_MIPMAP_LINEAR для min filter
+        if (s.GenMipmaps && s.MinFilter == TextureFilter::Linear)
+            minFilter = GL_LINEAR_MIPMAP_LINEAR;
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(minFilter));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(ToGLFilter(s.MagFilter)));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,     static_cast<GLint>(ToGLWrap(s.WrapS)));
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,     static_cast<GLint>(ToGLWrap(s.WrapT)));
     }
 
-    void Texture::SetData(const void* data, uint32_t size) {
-        uint32_t bpp = (m_DataFormat == GL_RGBA) ? 4 : 3;
-        if (size != m_Width * m_Height * bpp) {
-            CW_ERROR_LOG("Texture::SetData — size mismatch! Expected {0}, got {1}",
-                         m_Width * m_Height * bpp, size);
+    void Texture::SetData(const void* data, uint32_t sizeBytes) {
+        uint32_t bpp = (m_DataFmt == GL_RGBA) ? 4 : (m_DataFmt == GL_RGB) ? 3 : 1;
+        if (sizeBytes != m_Width * m_Height * bpp) {
+            std::cerr << "[Texture] SetData size mismatch!\n";
             return;
         }
-
         glBindTexture(GL_TEXTURE_2D, m_RendererID);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                        m_Width, m_Height,
-                        m_DataFormat, GL_UNSIGNED_BYTE, data);
+                        static_cast<GLsizei>(m_Width),
+                        static_cast<GLsizei>(m_Height),
+                        m_DataFmt, GL_UNSIGNED_BYTE, data);
     }
 
     void Texture::Bind(uint32_t slot) const {
@@ -107,4 +126,5 @@ namespace Engine::Graphics {
     void Texture::Unbind() const {
         glBindTexture(GL_TEXTURE_2D, 0);
     }
-}
+
+} // namespace Engine::Graphics

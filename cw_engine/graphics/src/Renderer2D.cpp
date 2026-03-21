@@ -1,298 +1,236 @@
 #include "Renderer2D.h"
+#include "render_command.h"
+#include "shader_program.h"
+#include "shader_module.h"
 #include "vertex_array.h"
 #include "vertex_buffer.h"
 #include "index_buffer.h"
-#include "shader_program.h"
-#include "shader_module.h"
-#include "render_command.h"
-#include "buffer_layout.h"
-#include <glad/glad.h>
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
 
 namespace Engine::Graphics {
 
-    // =========================================================================
-    // Структура однієї вершини квадрата
-    // =========================================================================
     struct QuadVertex {
-        glm::vec3 Position;   // location = 0
-        glm::vec4 Color;      // location = 1
-        glm::vec2 TexCoord;   // location = 2  (NEW)
-        float     TexIndex;   // location = 3  (NEW) — індекс слоту текстури
+        glm::vec3 Position;
+        glm::vec4 Color;
+        glm::vec2 TexCoord;
+        float     TexIndex;
     };
 
-    // =========================================================================
-    // Внутрішній стан рендерера
-    // =========================================================================
-    struct Renderer2DData {
-        // Ліміти одного батчу
-        static constexpr uint32_t MaxQuads        = 10000;
-        static constexpr uint32_t MaxVertices     = MaxQuads * 4;
-        static constexpr uint32_t MaxIndices      = MaxQuads * 6;
-        static constexpr uint32_t MaxTextureSlots = 32; // обмеження OpenGL (зазвичай 16–32)
+    static constexpr uint32_t MaxQuads    = 10000;
+    static constexpr uint32_t MaxVertices = MaxQuads * 4;
+    static constexpr uint32_t MaxIndices  = MaxQuads * 6;
+    static constexpr uint32_t MaxTexSlots = 32;
 
-        // GPU об'єкти
+    struct Renderer2DData {
         std::shared_ptr<VertexArray>   QuadVAO;
         std::shared_ptr<VertexBuffer>  QuadVBO;
-        std::shared_ptr<ShaderProgram> FlatColorShader;
+        std::shared_ptr<ShaderProgram> QuadShader;
+        std::shared_ptr<Texture>       WhiteTexture;
 
-        // CPU-сторона буфера вершин
-        uint32_t    QuadIndexCount       = 0;
-        QuadVertex* QuadVertexBufferBase = nullptr; // початок масиву
-        QuadVertex* QuadVertexBufferPtr  = nullptr; // поточна позиція запису
+        uint32_t    IndexCount       = 0;
+        QuadVertex* VertexBufferBase = nullptr;
+        QuadVertex* VertexBufferPtr  = nullptr;
 
-        // Слоти текстур для поточного батчу
-        // Слот 0 завжди = білий 1×1 піксель (використовується кольоровими квадратами)
-        std::array<std::shared_ptr<Texture>, MaxTextureSlots> TextureSlots;
-        uint32_t TextureSlotIndex = 1; // 0 зарезервований
+        std::array<std::shared_ptr<Texture>, MaxTexSlots> TextureSlots;
+        uint32_t TextureSlotIndex = 1;
 
-        // UV-кути для квадрата (порядок: лівий нижній → правий нижній → правий верхній → лівий верхній)
-        static constexpr glm::vec4 QuadVertexPositions[4] = {
+        glm::mat4 ViewProjection{ 1.0f };
+
+        Renderer2D::Statistics Stats;
+
+        glm::vec4 QuadVertexPositions[4] = {
             { -0.5f, -0.5f, 0.0f, 1.0f },
             {  0.5f, -0.5f, 0.0f, 1.0f },
             {  0.5f,  0.5f, 0.0f, 1.0f },
             { -0.5f,  0.5f, 0.0f, 1.0f }
         };
-
-        static constexpr glm::vec2 QuadUVCoords[4] = {
-            { 0.0f, 0.0f },
-            { 1.0f, 0.0f },
-            { 1.0f, 1.0f },
-            { 0.0f, 1.0f }
-        };
-
-        // Статистика
-        Renderer2D::Statistics Stats;
     };
 
     static Renderer2DData s_Data;
 
-    // =========================================================================
-    // Init / Shutdown
-    // =========================================================================
+    // ── Init / Shutdown ───────────────────────────────────────────────────────
 
     void Renderer2D::Init() {
-        // --- VAO + динамічний VBO ---
         s_Data.QuadVAO = std::make_shared<VertexArray>();
 
-        s_Data.QuadVBO = std::make_shared<VertexBuffer>(
-            s_Data.MaxVertices * sizeof(QuadVertex)
-        );
+        s_Data.QuadVBO = std::make_shared<VertexBuffer>(MaxVertices * (uint32_t)sizeof(QuadVertex));
         s_Data.QuadVBO->SetLayout({
             { ShaderDataType::Float3, "a_Position" },
             { ShaderDataType::Float4, "a_Color"    },
-            { ShaderDataType::Float2, "a_TexCoord" }, // NEW
-            { ShaderDataType::Float,  "a_TexIndex" }  // NEW
+            { ShaderDataType::Float2, "a_TexCoord" },
+            { ShaderDataType::Float,  "a_TexIndex" }
         });
         s_Data.QuadVAO->AddVertexBuffer(s_Data.QuadVBO);
 
-        // CPU-буфер вершин
-        s_Data.QuadVertexBufferBase = new QuadVertex[s_Data.MaxVertices];
+        s_Data.VertexBufferBase = new QuadVertex[MaxVertices];
 
-        // --- Статичний IBO (індекси не змінюються, тільки кількість) ---
-        uint32_t* quadIndices = new uint32_t[s_Data.MaxIndices];
+        auto* indices = new uint32_t[MaxIndices];
         uint32_t offset = 0;
-        for (uint32_t i = 0; i < s_Data.MaxIndices; i += 6) {
-            quadIndices[i + 0] = offset + 0;
-            quadIndices[i + 1] = offset + 1;
-            quadIndices[i + 2] = offset + 2;
-            quadIndices[i + 3] = offset + 2;
-            quadIndices[i + 4] = offset + 3;
-            quadIndices[i + 5] = offset + 0;
+        for (uint32_t i = 0; i < MaxIndices; i += 6) {
+            indices[i + 0] = offset + 0;
+            indices[i + 1] = offset + 1;
+            indices[i + 2] = offset + 2;
+            indices[i + 3] = offset + 2;
+            indices[i + 4] = offset + 3;
+            indices[i + 5] = offset + 0;
             offset += 4;
         }
-        auto quadIBO = std::make_shared<IndexBuffer>(quadIndices, s_Data.MaxIndices);
-        s_Data.QuadVAO->SetIndexBuffer(quadIBO);
-        delete[] quadIndices;
+        auto ibo = std::make_shared<IndexBuffer>(indices, MaxIndices);
+        s_Data.QuadVAO->SetIndexBuffer(ibo);
+        delete[] indices;
 
-        // --- Білий 1×1 піксель у слот 0 ---
-        // Завдяки цьому кольоровий DrawQuad просто множить колір на білий → без змін
-        uint32_t whitePixelData = 0xFFFFFFFF;
-        s_Data.TextureSlots[0] = std::make_shared<Texture>(1, 1, &whitePixelData);
+        uint32_t white = 0xFFFFFFFF;
+        s_Data.WhiteTexture = std::make_shared<Texture>(1, 1, &white);
+        s_Data.TextureSlots[0] = s_Data.WhiteTexture;
 
-        // --- Шейдер ---
-        s_Data.FlatColorShader = std::make_shared<ShaderProgram>();
-        ShaderModule vertShader("res/shaders/basic.vert", ShaderType::VERTEX);
-        ShaderModule fragShader("res/shaders/basic.frag", ShaderType::FRAGMENT);
-        s_Data.FlatColorShader->AttachShader(vertShader);
-        s_Data.FlatColorShader->AttachShader(fragShader);
-        s_Data.FlatColorShader->Link();
+        s_Data.QuadShader = std::make_shared<ShaderProgram>();
+        ShaderModule vert("res/shaders/basic.vert", ShaderType::Vertex);
+        ShaderModule frag("res/shaders/basic.frag", ShaderType::Fragment);
+        s_Data.QuadShader->AttachShader(vert);
+        s_Data.QuadShader->AttachShader(frag);
+        s_Data.QuadShader->Link();
 
-        // Передаємо масив sampler-ів один раз — вони не змінюються
-        // (прив'язка текстур до слотів змінюється, але індекси — ні)
-        s_Data.FlatColorShader->Bind();
-        int samplers[s_Data.MaxTextureSlots];
-        for (int i = 0; i < (int)s_Data.MaxTextureSlots; i++) samplers[i] = i;
-        s_Data.FlatColorShader->SetIntArray("u_Textures", samplers, s_Data.MaxTextureSlots);
+        s_Data.QuadShader->Bind();
+        int samplers[MaxTexSlots];
+        for (int i = 0; i < (int)MaxTexSlots; ++i) samplers[i] = i;
+        s_Data.QuadShader->SetIntArray("u_Textures", samplers, MaxTexSlots);
     }
 
     void Renderer2D::Shutdown() {
-        delete[] s_Data.QuadVertexBufferBase;
-        s_Data.QuadVertexBufferBase = nullptr;
-        s_Data.QuadVertexBufferPtr  = nullptr;
-        // TextureSlots автоматично звільняються (shared_ptr)
+        delete[] s_Data.VertexBufferBase;
+        s_Data.VertexBufferBase = nullptr;
     }
 
-    // =========================================================================
-    // BeginScene / EndScene
-    // =========================================================================
+    // ── Scene ─────────────────────────────────────────────────────────────────
 
     void Renderer2D::BeginScene(const OrthographicCamera& camera) {
-        s_Data.FlatColorShader->Bind();
-        s_Data.FlatColorShader->SetMat4("u_ViewProjection", camera.GetViewProjectionMatrix());
-
-        // Скидаємо лічильники батчу
-        s_Data.QuadIndexCount      = 0;
-        s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
-        s_Data.TextureSlotIndex    = 1; // слот 0 = білий піксель, не чіпаємо
+        s_Data.ViewProjection   = camera.GetViewProjectionMatrix();
+        s_Data.IndexCount       = 0;
+        s_Data.VertexBufferPtr  = s_Data.VertexBufferBase;
+        s_Data.TextureSlotIndex = 1;
     }
 
     void Renderer2D::EndScene() {
         Flush();
     }
 
-    // =========================================================================
-    // Flush — відправити поточний батч на GPU
-    // =========================================================================
-
     void Renderer2D::Flush() {
-        if (s_Data.QuadIndexCount == 0) return;
+        if (s_Data.IndexCount == 0) return;
 
-        // Розраховуємо розмір даних у байтах і заливаємо на GPU
-        uint32_t dataSize = static_cast<uint32_t>(
-            reinterpret_cast<uint8_t*>(s_Data.QuadVertexBufferPtr) -
-            reinterpret_cast<uint8_t*>(s_Data.QuadVertexBufferBase)
-        );
-        s_Data.QuadVBO->SetData(s_Data.QuadVertexBufferBase, dataSize);
+        uint32_t dataSize = (uint32_t)(
+            (uint8_t*)s_Data.VertexBufferPtr - (uint8_t*)s_Data.VertexBufferBase);
+        s_Data.QuadVBO->SetData(s_Data.VertexBufferBase, dataSize);
 
-        // Bind усіх задіяних текстурних слотів
-        for (uint32_t i = 0; i < s_Data.TextureSlotIndex; i++) {
-            if (s_Data.TextureSlots[i])
-                s_Data.TextureSlots[i]->Bind(i);
-        }
+        for (uint32_t i = 0; i < s_Data.TextureSlotIndex; ++i)
+            s_Data.TextureSlots[i]->Bind(i);
 
-        // Draw call
-        s_Data.QuadVAO->Bind();
-        glDrawElements(
-            GL_TRIANGLES,
-            static_cast<GLsizei>(s_Data.QuadIndexCount),
-            GL_UNSIGNED_INT,
-            nullptr
-        );
+        s_Data.QuadShader->Bind();
+        s_Data.QuadShader->SetMat4("u_ViewProjection", s_Data.ViewProjection);
 
-        // Статистика
-        s_Data.Stats.DrawCalls++;
-        s_Data.Stats.QuadCount += s_Data.QuadIndexCount / 6;
+        // DrawIndexed з явним count щоб не малювати весь IBO
+        glDrawElements(GL_TRIANGLES, (int)s_Data.IndexCount, GL_UNSIGNED_INT, nullptr);
+        ++s_Data.Stats.DrawCalls;
     }
 
-    void Renderer2D::FlushAndReset() {
-        // Скидаємо батч (пряме Flush, НЕ EndScene — щоб уникнути рекурсії)
+    void  Renderer2D::FlushAndReset() {
         Flush();
-
-        s_Data.QuadIndexCount      = 0;
-        s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
-        s_Data.TextureSlotIndex    = 1;
+        s_Data.IndexCount       = 0;
+        s_Data.VertexBufferPtr  = s_Data.VertexBufferBase;
+        s_Data.TextureSlotIndex = 1;
     }
 
-    // =========================================================================
-    // Внутрішня функція заповнення 4 вершин квадрата
-    // =========================================================================
+    // ── SubmitQuad (приватний) ────────────────────────────────────────────────
 
-    static void SubmitQuad(const glm::mat4& transform,
-                           const glm::vec4& color,
-                           const glm::vec2  uvCoords[4],
-                           float            texIndex)
+    void Renderer2D::SubmitQuad(const glm::mat4& transform,
+                                 const glm::vec4& color,
+                                 float texIndex)
     {
-        for (int i = 0; i < 4; i++) {
-            s_Data.QuadVertexBufferPtr->Position = transform * s_Data.QuadVertexPositions[i];
-            s_Data.QuadVertexBufferPtr->Color    = color;
-            s_Data.QuadVertexBufferPtr->TexCoord = uvCoords[i];
-            s_Data.QuadVertexBufferPtr->TexIndex = texIndex;
-            s_Data.QuadVertexBufferPtr++;
-        }
-        s_Data.QuadIndexCount += 6;
-    }
-
-    // =========================================================================
-    // DrawQuad — кольорові (texIndex = 0 → білий піксель)
-    // =========================================================================
-
-    void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size,
-                               const glm::vec4& color)
-    {
-        DrawQuad({ position.x, position.y, 0.0f }, size, color);
-    }
-
-    void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size,
-                               const glm::vec4& color)
-    {
-        if (s_Data.QuadIndexCount >= s_Data.MaxIndices)
+        if (s_Data.IndexCount >= MaxIndices)
             FlushAndReset();
 
-        glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
-                            * glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+        static constexpr glm::vec2 texCoords[4] = {
+            {0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}
+        };
 
-        SubmitQuad(transform, color, s_Data.QuadUVCoords, 0.0f);
-    }
-
-    // =========================================================================
-    // DrawQuad — текстуровані
-    // =========================================================================
-
-    void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size,
-                               const std::shared_ptr<Texture>& texture,
-                               const glm::vec4& tint)
-    {
-        DrawQuad({ position.x, position.y, 0.0f }, size, texture, tint);
-    }
-
-    void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size,
-                               const std::shared_ptr<Texture>& texture,
-                               const glm::vec4& tint)
-    {
-        // --- Перевіряємо переповнення батчу ---
-        // Перевіряємо і за індексами, і за кількістю слотів
-        if (s_Data.QuadIndexCount >= s_Data.MaxIndices ||
-            s_Data.TextureSlotIndex >= s_Data.MaxTextureSlots)
-        {
-            FlushAndReset();
+        for (int i = 0; i < 4; ++i) {
+            s_Data.VertexBufferPtr->Position = transform * s_Data.QuadVertexPositions[i];
+            s_Data.VertexBufferPtr->Color    = color;
+            s_Data.VertexBufferPtr->TexCoord = texCoords[i];
+            s_Data.VertexBufferPtr->TexIndex = texIndex;
+            ++s_Data.VertexBufferPtr;
         }
-
-        // --- Знаходимо або реєструємо слот текстури ---
-        float texIndex = 0.0f;
-        for (uint32_t i = 1; i < s_Data.TextureSlotIndex; i++) {
-            // Порівнюємо за OpenGL ID — одна текстура = той самий слот у батчі
-            if (s_Data.TextureSlots[i]->GetRendererID() == texture->GetRendererID()) {
-                texIndex = static_cast<float>(i);
-                break;
-            }
-        }
-
-        if (texIndex == 0.0f) {
-            // Нова текстура — записуємо у наступний вільний слот
-            texIndex = static_cast<float>(s_Data.TextureSlotIndex);
-            s_Data.TextureSlots[s_Data.TextureSlotIndex] = texture;
-            s_Data.TextureSlotIndex++;
-        }
-
-        // --- Трансформація на CPU ---
-        glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
-                            * glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
-
-        SubmitQuad(transform, tint, s_Data.QuadUVCoords, texIndex);
+        s_Data.IndexCount += 6;
+        ++s_Data.Stats.QuadCount;
     }
 
-    // =========================================================================
-    // Статистика
-    // =========================================================================
+    // ── GetOrAddTexture (локальний helper) ────────────────────────────────────
 
-    void Renderer2D::ResetStats() {
-        s_Data.Stats = {};
+    static float GetOrAddTexture(const std::shared_ptr<Texture>& tex) {
+        for (uint32_t i = 1; i < s_Data.TextureSlotIndex; ++i)
+            if (s_Data.TextureSlots[i].get() == tex.get())
+                return (float)i;
+
+        if (s_Data.TextureSlotIndex >= MaxTexSlots)
+            Renderer2D::FlushAndReset();
+
+        float idx = (float)s_Data.TextureSlotIndex;
+        s_Data.TextureSlots[s_Data.TextureSlotIndex++] = tex;
+        return idx;
     }
 
-    Renderer2D::Statistics Renderer2D::GetStats() {
-        return s_Data.Stats;
+    // ── Public DrawQuad ───────────────────────────────────────────────────────
+
+    void Renderer2D::DrawQuad(const glm::vec2& pos, const glm::vec2& size,
+                               const glm::vec4& color) {
+        DrawQuad({ pos.x, pos.y, 0.0f }, size, color);
     }
 
-}
+    void Renderer2D::DrawQuad(const glm::vec3& pos, const glm::vec2& size,
+                               const glm::vec4& color) {
+        glm::mat4 t = glm::translate(glm::mat4(1.0f), pos)
+                    * glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+        SubmitQuad(t, color, 0.0f);
+    }
+
+    void Renderer2D::DrawQuad(const glm::vec2& pos, const glm::vec2& size,
+                               const std::shared_ptr<Texture>& tex,
+                               const glm::vec4& tint) {
+        DrawQuad({ pos.x, pos.y, 0.0f }, size, tex, tint);
+    }
+
+    void Renderer2D::DrawQuad(const glm::vec3& pos, const glm::vec2& size,
+                               const std::shared_ptr<Texture>& tex,
+                               const glm::vec4& tint) {
+        glm::mat4 t = glm::translate(glm::mat4(1.0f), pos)
+                    * glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+        SubmitQuad(t, tint, GetOrAddTexture(tex));
+    }
+
+    // ── Public DrawRotatedQuad ────────────────────────────────────────────────
+
+    void Renderer2D::DrawRotatedQuad(const glm::vec3& pos, const glm::vec2& size,
+                                      float rotationDeg, const glm::vec4& color) {
+        glm::mat4 t = glm::translate(glm::mat4(1.0f), pos)
+                    * glm::rotate(glm::mat4(1.0f), glm::radians(rotationDeg), {0.f,0.f,1.f})
+                    * glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+        SubmitQuad(t, color, 0.0f);
+    }
+
+    void Renderer2D::DrawRotatedQuad(const glm::vec3& pos, const glm::vec2& size,
+                                      float rotationDeg,
+                                      const std::shared_ptr<Texture>& tex,
+                                      const glm::vec4& tint) {
+        glm::mat4 t = glm::translate(glm::mat4(1.0f), pos)
+                    * glm::rotate(glm::mat4(1.0f), glm::radians(rotationDeg), {0.f,0.f,1.f})
+                    * glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+        SubmitQuad(t, tint, GetOrAddTexture(tex));
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    Renderer2D::Statistics Renderer2D::GetStats() { return s_Data.Stats; }
+    void Renderer2D::ResetStats()                  { s_Data.Stats = {}; }
+
+} // namespace Engine::Graphics

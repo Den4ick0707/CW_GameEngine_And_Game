@@ -1,5 +1,4 @@
 #include "time_manager.h"
-// FIX: явний include — не покладаємось на PCH для зовнішньої залежності
 #include <GLFW/glfw3.h>
 
 namespace Engine::Core {
@@ -14,12 +13,13 @@ namespace Engine::Core {
     }
 
     void Time::Update() {
-        const double current = glfwGetTime();
-        m_DeltaTime     = current - m_LastFrameTime;
-        m_LastFrameTime = current;
-        m_Time          = current;
+        const double cur = glfwGetTime();
+        m_DeltaTime      = cur - m_LastFrameTime;
+        m_LastFrameTime  = cur;
+        m_Time           = cur;
 
-        // Захист від величезного стрибка часу (наприклад, брейкпоінт в дебагері)
+        // Захист від великого стрибка (брейкпоінт / лаг)
         if (m_DeltaTime > 0.1) m_DeltaTime = 0.1;
     }
-}
+
+} // namespace Engine::Core

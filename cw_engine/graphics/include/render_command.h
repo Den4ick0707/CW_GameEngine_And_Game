@@ -1,5 +1,4 @@
-#ifndef CW_ENGINE_GRAPHICS_RENDER_COMMAND_H
-#define CW_ENGINE_GRAPHICS_RENDER_COMMAND_H
+#pragma once
 
 #include "vertex_array.h"
 #include <glm/glm.hpp>
@@ -8,20 +7,23 @@
 
 namespace Engine::Graphics {
 
-    /// @brief Низькорівнева обгортка над командами OpenGL.
+    /// @brief Тонка обгортка над low-level командами OpenGL.
     class RenderCommand {
     public:
-        /// @brief Встановлює колір очищення екрану (фон).
-        static void SetClearColor(const glm::vec4 &color);
+        static void Init();
 
-        /// @brief Очищує буфери кольору та глибини.
+        static void SetClearColor(const glm::vec4& color);
         static void Clear();
 
-        /// @brief Малює геометрію на основі індексного буфера (glDrawElements).
-        /// @param vertexArray VAO, який містить VBO та IBO.
-        /// @param indexCount Кількість індексів для малювання. Якщо 0, малюються всі індекси з буфера.
-        static void DrawIndexed(const std::shared_ptr<VertexArray> &vertexArray, uint32_t indexCount = 0);
-    };
-}
+        /// @brief glDrawElements. indexCount=0 → весь IBO.
+        static void DrawIndexed(const std::shared_ptr<VertexArray>& vao,
+                                uint32_t indexCount = 0);
 
-#endif // CW_ENGINE_GRAPHICS_RENDER_COMMAND_H
+        static void SetDepthTest(bool enabled);
+        static void SetBlend    (bool enabled);
+        static void SetWireframe(bool enabled);
+
+        [[nodiscard]] static uint32_t GetMaxTextureSlots();
+    };
+
+} // namespace Engine::Graphics

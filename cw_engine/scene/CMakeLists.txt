@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(cw_scene)
 
-# FIX: порожній CMakeLists.txt викликав помилку збірки.
-# Поки що — пуста бібліотека-заглушка, яку можна наповнити пізніше.
-
 file(GLOB_RECURSE SOURCES src/*.cpp)
 file(GLOB_RECURSE HEADERS include/*.h)
 
