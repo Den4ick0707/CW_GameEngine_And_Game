@@ -1,4 +1,5 @@
 #include "input.h"
+#include "application.h"
 #include <GLFW/glfw3.h>
 
 namespace Engine::Core {
@@ -27,9 +28,15 @@ namespace Engine::Core {
     void Input::ClearSubscriptions() { m_Callbacks.clear(); }
 
     bool Input::IsKeyHeld(KeyCode key) const {
-        auto it = m_KeyStates.find(static_cast<int>(key));
-        return it != m_KeyStates.end() &&
-               (it->second == GLFW_PRESS || it->second == GLFW_REPEAT);
+        // Чи дійсно GetNativeWindow() повертає правильний GLFWwindow* ?
+        auto window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
+
+        // Переконайся, що window не nullptr
+        if (!window) return false;
+
+        // GLFW використовує цілочисельні коди
+        int state = glfwGetKey(window, static_cast<int>(key));
+        return state == GLFW_PRESS || state == GLFW_REPEAT;
     }
 
     bool Input::IsMouseHeld(MouseCode btn) const {

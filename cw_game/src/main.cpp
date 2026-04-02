@@ -8,9 +8,11 @@
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <sstream>
+#include <iostream>
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
 
 using namespace Engine::Core;
 using namespace Engine::Scene;
@@ -24,15 +26,15 @@ struct PlatformComponent {
 };
 
 struct CoinComponent {
-    float Offset   = 0.0f;   // фазовий зсув анімації
-    float Speed    = 2.0f;
+    float Offset    = 0.0f;   // фазовий зсув анімації
+    float Speed     = 2.0f;
     bool  Collected = false;
 };
 
 struct PlayerComponent {
-    bool  OnGround    = false;
-    float JumpForce   = 8.0f;
-    float MoveSpeed   = 5.0f;
+    bool  OnGround       = false;
+    float JumpForce      = 12.0f;
+    float MoveSpeed      = 5.0f;
     int   CoinsCollected = 0;
 };
 
@@ -41,21 +43,27 @@ struct ParallaxLayerComponent {
     float OriginalX   = 0.0f;
 };
 
+// Компонент для очей, щоб вони рухалися за гравцем
+struct EyeComponent {
+    float OffsetX = 0.0f;
+    float OffsetY = 0.15f;
+};
+
 // ── Сцена платформера ─────────────────────────────────────────────────────────
 
 class PlatformerScene : public Scene {
 public:
     PlatformerScene() : Scene("Platformer") {
-            GetCamera().SetProjection(-16.0f, 16.0f, -9.0f, 9.0f);
+        GetCamera().SetProjection(-16.0f, 16.0f, -9.0f, 9.0f);
 
-            SpawnBackground();
-            SpawnPlatforms();
-            SpawnCoins();
-            SpawnPlayer();
+        SpawnBackground();
+        SpawnPlatforms();
+        SpawnCoins();
+        SpawnPlayer();
 
-            Input::Get().Subscribe("Exit", [this]() { m_ShouldQuit = true; });
-
+        Input::Get().Subscribe("Exit", [this]() { m_ShouldQuit = true; });
     }
+
     void OnUpdate(float dt) override {
         if (m_ShouldQuit) {
             Application::Get().Quit();
@@ -80,10 +88,10 @@ public:
         Scene::OnRender();
     }
 
-public:
     Entity GetPlayer() const { return m_Player; }
+
 private:
-Entity m_Player = { NULL_ENTITY };
+    Entity m_Player = { NULL_ENTITY };
     bool   m_ShouldQuit = false;
 
     // ── Спавн ─────────────────────────────────────────────────────────────────
@@ -98,7 +106,7 @@ Entity m_Player = { NULL_ENTITY };
         };
 
         for (auto& l : layers) {
-            // Для паралаксу ставимо кілька копій щоб не було діри
+            // Для паралаксу ставимо кілька копій, щоб не було діри
             for (int i = -2; i <= 2; ++i) {
                 Entity e = CreateEntity("BG");
                 auto& t = GetRegistry().Get<TransformComponent>(e);
@@ -119,9 +127,11 @@ Entity m_Player = { NULL_ENTITY };
         for (int i = 0; i < 300; ++i) {
             Entity e = CreateEntity("Star");
             auto& t = GetRegistry().Get<TransformComponent>(e);
+
             float x = ((rand() % 6400) / 100.0f) - 32.0f;
             float y = ((rand() % 1800) / 100.0f) - 5.0f;
             t.Position = { x, y, -0.6f };
+
             float sz   = 0.03f + (rand() % 10) / 200.0f;
             t.Scale    = { sz, sz };
 
@@ -135,15 +145,15 @@ Entity m_Player = { NULL_ENTITY };
     void SpawnPlatforms() {
         struct PlatDesc { float X, Y, W; glm::vec4 Color; };
         PlatDesc platforms[] = {
-            {  0.0f, -5.0f, 30.0f, { 0.20f, 0.60f, 0.20f, 1.0f } }, // земля
-            { -8.0f, -2.0f,  4.0f, { 0.30f, 0.50f, 0.30f, 1.0f } },
-            { -2.0f, -0.5f,  3.5f, { 0.35f, 0.55f, 0.25f, 1.0f } },
-            {  4.0f,  1.0f,  3.0f, { 0.25f, 0.50f, 0.35f, 1.0f } },
-            {  9.0f,  2.5f,  2.5f, { 0.20f, 0.45f, 0.40f, 1.0f } },
-            { -5.0f,  1.5f,  2.0f, { 0.30f, 0.55f, 0.30f, 1.0f } },
-            {  1.0f,  3.5f,  2.0f, { 0.25f, 0.60f, 0.25f, 1.0f } },
-            {  7.0f,  5.0f,  3.0f, { 0.20f, 0.50f, 0.35f, 1.0f } },
-            { -10.0f, 0.5f,  2.5f, { 0.35f, 0.45f, 0.30f, 1.0f } },
+            {   0.0f, -5.0f, 30.0f, { 0.20f, 0.60f, 0.20f, 1.0f } }, // земля
+            {  -8.0f, -2.0f,  4.0f, { 0.30f, 0.50f, 0.30f, 1.0f } },
+            {  -2.0f, -0.5f,  3.5f, { 0.35f, 0.55f, 0.25f, 1.0f } },
+            {   4.0f,  1.0f,  3.0f, { 0.25f, 0.50f, 0.35f, 1.0f } },
+            {   9.0f,  2.5f,  2.5f, { 0.20f, 0.45f, 0.40f, 1.0f } },
+            {  -5.0f,  1.5f,  2.0f, { 0.30f, 0.55f, 0.30f, 1.0f } },
+            {   1.0f,  3.5f,  2.0f, { 0.25f, 0.60f, 0.25f, 1.0f } },
+            {   7.0f,  5.0f,  3.0f, { 0.20f, 0.50f, 0.35f, 1.0f } },
+            { -10.0f,  0.5f,  2.5f, { 0.35f, 0.45f, 0.30f, 1.0f } },
         };
 
         for (auto& p : platforms) {
@@ -172,6 +182,7 @@ Entity m_Player = { NULL_ENTITY };
             auto& tt = GetRegistry().Get<TransformComponent>(top);
             tt.Position = { p.X, p.Y + 0.22f, 0.0f };
             tt.Scale    = { p.W, 0.04f };
+
             auto& ts = GetRegistry().Add<SpriteRendererComponent>(top);
             ts.Color  = { p.Color.r + 0.1f, p.Color.g + 0.1f, p.Color.b + 0.1f, 1.0f };
             ts.ZLayer = 2;
@@ -181,23 +192,13 @@ Entity m_Player = { NULL_ENTITY };
     void SpawnCoins() {
         // Монети — 60 штук (демонстрація batch rendering)
         struct CoinPos { float X, Y; };
-        std::vector<CoinPos> positions;
-
-        // Навколо платформ
-        positions.push_back({ -8.0f, -1.3f });
-        positions.push_back({ -7.0f, -1.3f });
-        positions.push_back({ -6.0f, -1.3f });
-        positions.push_back({ -2.0f,  0.2f });
-        positions.push_back({ -1.0f,  0.2f });
-        positions.push_back({  0.0f,  0.2f });
-        positions.push_back({  4.0f,  1.7f });
-        positions.push_back({  5.0f,  1.7f });
-        positions.push_back({  9.0f,  3.2f });
-        positions.push_back({ 10.0f,  3.2f });
-        positions.push_back({ -5.0f,  2.2f });
-        positions.push_back({  1.0f,  4.2f });
-        positions.push_back({  7.0f,  5.7f });
-        positions.push_back({  8.0f,  5.7f });
+        std::vector<CoinPos> positions = {
+            { -8.0f, -1.3f }, { -7.0f, -1.3f }, { -6.0f, -1.3f },
+            { -2.0f,  0.2f }, { -1.0f,  0.2f }, {  0.0f,  0.2f },
+            {  4.0f,  1.7f }, {  5.0f,  1.7f }, {  9.0f,  3.2f },
+            { 10.0f,  3.2f }, { -5.0f,  2.2f }, {  1.0f,  4.2f },
+            {  7.0f,  5.7f }, {  8.0f,  5.7f }
+        };
 
         // Додаткові монети для batch demo
         for (int i = 0; i < 46; ++i) {
@@ -232,7 +233,7 @@ Entity m_Player = { NULL_ENTITY };
         m_Player = CreateEntity("Player");
 
         auto& t = GetRegistry().Get<TransformComponent>(m_Player);
-        t.Position = { -8.0f, -1.0f, 0.2f };
+        t.Position = { -8.0f, -0.0f, 0.2f };
         t.Scale    = { 0.5f, 0.7f };
 
         auto& s = GetRegistry().Add<SpriteRendererComponent>(m_Player);
@@ -240,6 +241,7 @@ Entity m_Player = { NULL_ENTITY };
         s.ZLayer = 5;
 
         auto& rb = GetRegistry().Add<RigidbodyComponent>(m_Player);
+        rb.IsStatic   = false;
         rb.UseGravity = true;
         rb.Drag       = 2.0f;
         rb.Mass       = 1.0f;
@@ -249,15 +251,27 @@ Entity m_Player = { NULL_ENTITY };
 
         GetRegistry().Add<PlayerComponent>(m_Player);
 
+        // ✅ ВИПРАВЛЕННЯ: Додано ActiveComponent, щоб фізика бачила гравця
+        auto& active = GetRegistry().Add<ActiveComponent>(m_Player);
+        active.Active = true;
+
         // "Очі" гравця
         for (int i = 0; i < 2; ++i) {
             Entity eye = CreateEntity("Eye");
             auto& et = GetRegistry().Get<TransformComponent>(eye);
-            et.Position = { t.Position.x + (i == 0 ? -0.1f : 0.1f), t.Position.y + 0.15f, 0.3f };
+
+            float offsetX = (i == 0 ? -0.1f : 0.1f);
+            et.Position = { t.Position.x + offsetX, t.Position.y + 0.15f, 0.3f };
             et.Scale    = { 0.08f, 0.08f };
+
             auto& es = GetRegistry().Add<SpriteRendererComponent>(eye);
             es.Color  = { 1.0f, 1.0f, 1.0f, 1.0f };
             es.ZLayer = 6;
+
+            // Додаємо компонент для відслідковування гравця
+            auto& ec = GetRegistry().Add<EyeComponent>(eye);
+            ec.OffsetX = offsetX;
+            ec.OffsetY = 0.15f;
         }
     }
 
@@ -284,9 +298,11 @@ Entity m_Player = { NULL_ENTITY };
                 // Пульсація розміру
                 float pulse = std::sin(time * c.Speed + c.Offset) * 0.04f;
                 t.Scale = { 0.25f + pulse, 0.25f + pulse };
+
                 // Пульсація кольору (золото → жовто-білий)
                 float bright = 0.85f + std::sin(time * c.Speed * 1.3f + c.Offset) * 0.15f;
                 s.Color = { 1.0f, bright, 0.0f, 1.0f };
+
                 // Легке підскакування
                 t.Position.y += std::sin(time * c.Speed + c.Offset) * 0.0015f;
             });
@@ -303,7 +319,9 @@ Entity m_Player = { NULL_ENTITY };
 
         glm::vec2 dir = { 0.0f, 0.0f };
         if (input.IsKeyHeld(KeyCode::A) || input.IsKeyHeld(KeyCode::Left))  dir.x -= 1.0f;
-        if (input.IsKeyHeld(KeyCode::D) || input.IsKeyHeld(KeyCode::Right)) dir.x += 1.0f;
+        if (input.IsKeyHeld(KeyCode::D) || input.IsKeyHeld(KeyCode::Right)) {
+            dir.x += 1.0f;
+        }
 
         rb.Velocity.x = dir.x * pc.MoveSpeed;
 
@@ -323,7 +341,7 @@ Entity m_Player = { NULL_ENTITY };
         }
 
         // Колір гравця залежно від швидкості
-        float speed = glm::length(rb.Velocity);
+        float speed = std::abs(rb.Velocity.x);
         s.Color = {
             0.2f + speed * 0.03f,
             0.6f - speed * 0.01f,
@@ -336,14 +354,28 @@ Entity m_Player = { NULL_ENTITY };
             t.Position = { -8.0f, -1.0f, 0.2f };
             rb.Velocity = { 0.0f, 0.0f };
         }
+
+        // Оновлюємо позицію очей, щоб вони не відривалися від тіла
+        GetRegistry().View<TransformComponent, EyeComponent>(
+            [&t](EntityID, TransformComponent& eyeTransform, EyeComponent& eye) {
+                eyeTransform.Position.x = t.Position.x + eye.OffsetX;
+                eyeTransform.Position.y = t.Position.y + eye.OffsetY;
+            });
     }
 
     void UpdatePhysics(float dt) {
-        GetRegistry().View<TransformComponent, RigidbodyComponent, ActiveComponent>(
-            [dt](EntityID, TransformComponent& t, RigidbodyComponent& rb, ActiveComponent& a) {
-                if (!a.Active || rb.IsStatic) return;
-                if (rb.UseGravity) rb.Velocity.y -= 20.0f * dt;
+        // Прибрали ActiveComponent з фільтру
+        GetRegistry().View<TransformComponent, RigidbodyComponent>(
+            [dt](EntityID, TransformComponent& t, RigidbodyComponent& rb) {
+
+                if (rb.IsStatic) return; // Платформи залишаться нерухомими
+
+                if (rb.UseGravity) {
+                    rb.Velocity.y -= 20.0f * dt;
+                }
+
                 rb.Velocity.x *= (1.0f - rb.Drag * dt * 0.5f);
+
                 t.Position.x += rb.Velocity.x * dt;
                 t.Position.y += rb.Velocity.y * dt;
             });
@@ -352,8 +384,8 @@ Entity m_Player = { NULL_ENTITY };
     void UpdateCollisions() {
         if (!GetRegistry().Has<PlayerComponent>(m_Player)) return;
 
-        auto& pt  = GetRegistry().Get<TransformComponent>(m_Player);
-        auto& prb = GetRegistry().Get<RigidbodyComponent>(m_Player);
+        auto& pt   = GetRegistry().Get<TransformComponent>(m_Player);
+        auto& prb  = GetRegistry().Get<RigidbodyComponent>(m_Player);
         auto& pcol = GetRegistry().Get<ColliderComponent>(m_Player);
         auto& ppc  = GetRegistry().Get<PlayerComponent>(m_Player);
 
@@ -362,14 +394,11 @@ Entity m_Player = { NULL_ENTITY };
         // Гравець vs Платформи
         GetRegistry().View<TransformComponent, ColliderComponent, PlatformComponent>(
             [&](EntityID, TransformComponent& t, ColliderComponent& col, PlatformComponent&) {
-                glm::vec2 pMin = { pt.Position.x - pcol.Size.x * 0.5f,
-                                   pt.Position.y - pcol.Size.y * 0.5f };
-                glm::vec2 pMax = { pt.Position.x + pcol.Size.x * 0.5f,
-                                   pt.Position.y + pcol.Size.y * 0.5f };
-                glm::vec2 cMin = { t.Position.x - col.Size.x * 0.5f,
-                                   t.Position.y - col.Size.y * 0.5f };
-                glm::vec2 cMax = { t.Position.x + col.Size.x * 0.5f,
-                                   t.Position.y + col.Size.y * 0.5f };
+                glm::vec2 pMin = { pt.Position.x - pcol.Size.x * 0.5f, pt.Position.y - pcol.Size.y * 0.5f };
+                glm::vec2 pMax = { pt.Position.x + pcol.Size.x * 0.5f, pt.Position.y + pcol.Size.y * 0.5f };
+
+                glm::vec2 cMin = { t.Position.x - col.Size.x * 0.5f, t.Position.y - col.Size.y * 0.5f };
+                glm::vec2 cMax = { t.Position.x + col.Size.x * 0.5f, t.Position.y + col.Size.y * 0.5f };
 
                 if (pMax.x > cMin.x && pMin.x < cMax.x &&
                     pMax.y > cMin.y && pMin.y < cMax.y) {
@@ -379,8 +408,7 @@ Entity m_Player = { NULL_ENTITY };
                     float overlapX_left   = pMax.x - cMin.x;
                     float overlapX_right  = cMax.x - pMin.x;
 
-                    float minOverlap = std::min({overlapY_top, overlapY_bottom,
-                                                  overlapX_left, overlapX_right});
+                    float minOverlap = std::min({overlapY_top, overlapY_bottom, overlapX_left, overlapX_right});
 
                     if (minOverlap == overlapY_top) {
                         pt.Position.y = cMax.y + pcol.Size.y * 0.5f;
@@ -403,14 +431,12 @@ Entity m_Player = { NULL_ENTITY };
         GetRegistry().View<TransformComponent, ColliderComponent, CoinComponent>(
             [&](EntityID, TransformComponent& t, ColliderComponent& col, CoinComponent& c) {
                 if (c.Collected) return;
-                glm::vec2 pMin = { pt.Position.x - pcol.Size.x * 0.5f,
-                                   pt.Position.y - pcol.Size.y * 0.5f };
-                glm::vec2 pMax = { pt.Position.x + pcol.Size.x * 0.5f,
-                                   pt.Position.y + pcol.Size.y * 0.5f };
-                glm::vec2 cMin = { t.Position.x - col.Size.x * 0.5f,
-                                   t.Position.y - col.Size.y * 0.5f };
-                glm::vec2 cMax = { t.Position.x + col.Size.x * 0.5f,
-                                   t.Position.y + col.Size.y * 0.5f };
+
+                glm::vec2 pMin = { pt.Position.x - pcol.Size.x * 0.5f, pt.Position.y - pcol.Size.y * 0.5f };
+                glm::vec2 pMax = { pt.Position.x + pcol.Size.x * 0.5f, pt.Position.y + pcol.Size.y * 0.5f };
+
+                glm::vec2 cMin = { t.Position.x - col.Size.x * 0.5f, t.Position.y - col.Size.y * 0.5f };
+                glm::vec2 cMax = { t.Position.x + col.Size.x * 0.5f, t.Position.y + col.Size.y * 0.5f };
 
                 if (pMax.x > cMin.x && pMin.x < cMax.x &&
                     pMax.y > cMin.y && pMin.y < cMax.y) {
@@ -429,8 +455,8 @@ Entity m_Player = { NULL_ENTITY };
         glm::vec3 newPos  = camPos + (target - camPos) * 5.0f * dt;
 
         // Обмеження камери
-        newPos.x = glm::clamp(newPos.x, -8.0f, 8.0f);
-        newPos.y = glm::clamp(newPos.y, -4.0f, 6.0f);
+        newPos.x = std::clamp(newPos.x, -8.0f, 8.0f);
+        newPos.y = std::clamp(newPos.y, -4.0f, 6.0f);
         GetCamera().SetPosition(newPos);
     }
 };
@@ -467,11 +493,13 @@ public:
 
         auto stats = Renderer2D::GetStats();
         auto* pc = dynamic_cast<PlatformerScene*>(SceneManager::GetActive());
+
         int coins = 0;
         if (pc) {
             auto& reg = pc->GetRegistry();
-            if (reg.Has<PlayerComponent>(pc->GetPlayer()))
+            if (reg.Has<PlayerComponent>(pc->GetPlayer())) {
                 coins = reg.Get<PlayerComponent>(pc->GetPlayer()).CoinsCollected;
+            }
         }
 
         std::ostringstream title;
@@ -479,7 +507,9 @@ public:
               << "DrawCalls: " << stats.DrawCalls
               << "  Quads: "   << stats.QuadCount
               << "  Coins: "   << coins
-              << "/" << 60;
+              << "/" << 60
+                << "FPS: "<<Time::GetFPS();
+
         glfwSetWindowTitle(GetWindow().GetNativeWindow(), title.str().c_str());
         Renderer2D::ResetStats();
     }
