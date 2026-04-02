@@ -46,7 +46,7 @@ namespace Engine::Core {
         const char* LevelToColor (LogLevel level) const;
 
         LogLevel      m_MinLevel = LogLevel::Trace;
-        int           m_Targets  = LogTarget::Console;
+        int     m_Targets  = LogTarget::Console;
         std::ofstream m_FileStream;
         mutable std::mutex m_Mutex;
     };

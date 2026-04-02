@@ -28,7 +28,8 @@ namespace Engine::Core {
 
     bool Input::IsKeyHeld(KeyCode key) const {
         auto it = m_KeyStates.find(static_cast<int>(key));
-        return it != m_KeyStates.end() && it->second == GLFW_PRESS;
+        return it != m_KeyStates.end() &&
+               (it->second == GLFW_PRESS || it->second == GLFW_REPEAT);
     }
 
     bool Input::IsMouseHeld(MouseCode btn) const {
