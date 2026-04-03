@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <string>
 #include <memory>
 
@@ -21,11 +22,14 @@ namespace Engine::Scene {
         explicit TagComponent(std::string name) : Name(std::move(name)) {}
     };
 
-    /// @brief Позиція, поворот і масштаб у 2D просторі.
     struct TransformComponent {
         glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
         float     Rotation = 0.0f;              ///< Градуси, вісь Z
         glm::vec2 Scale    = { 1.0f, 1.0f };
+
+        // Додаємо кешовані матриці для ієрархії та рендерингу
+        glm::mat4 LocalTransform = glm::mat4(1.0f);
+        glm::mat4 GlobalTransform = glm::mat4(1.0f);
 
         TransformComponent() = default;
         TransformComponent(const glm::vec3& pos,
@@ -37,7 +41,28 @@ namespace Engine::Scene {
         [[nodiscard]] glm::vec2 GetPosition2D() const {
             return { Position.x, Position.y };
         }
+
+        /// @brief Обчислює матрицю трансформації відносно батька.
+        void CalculateLocalTransform() {
+            // 1. Переміщення (Translate)
+            LocalTransform = glm::translate(glm::mat4(1.0f), Position);
+
+            // 2. Обертання (Rotate) - GLM очікує радіани, тому конвертуємо градуси
+            LocalTransform = glm::rotate(LocalTransform, glm::radians(Rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+
+            // 3. Масштабування (Scale) - додаємо 1.0f для осі Z
+            LocalTransform = glm::scale(LocalTransform, glm::vec3(Scale.x, Scale.y, 1.0f));
+        }
     };
+
+    struct RelationshipComponent {
+        uint32_t Parent = 0;
+        uint32_t FirstChild = 0;
+        uint32_t NextSibling = 0;
+    };
+}
+
+
 
     /// @brief Візуальне представлення — колір або текстура.
     struct SpriteRendererComponent {
@@ -110,4 +135,4 @@ namespace Engine::Scene {
         bool Active = true;
     };
 
-} // namespace Engine::Scene
+// namespace Engine::Scene

@@ -11,4 +11,5 @@ target_include_directories(${PROJECT_NAME} PUBLIC include)
 target_link_libraries(${PROJECT_NAME} PRIVATE
         cw_graphics
         glm_lib
+        json_lib
 )
