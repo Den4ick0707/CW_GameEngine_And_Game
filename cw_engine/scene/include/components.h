@@ -60,6 +60,7 @@ namespace Engine::Scene {
         uint32_t FirstChild = 0;
         uint32_t NextSibling = 0;
     };
+
 }
 
 
