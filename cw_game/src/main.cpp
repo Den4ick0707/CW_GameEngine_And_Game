@@ -122,6 +122,35 @@ public:
     Entity GetPlayer() const { return m_Player; }
     bool IsGameWon() const { return m_GameWon; }
 
+    void Restart() {
+        m_GameWon = false;
+
+        // Знаходимо гравця і скидаємо його стан
+        if (GetRegistry().Has<TransformComponent>(m_Player)) {
+            auto &t = GetRegistry().Get<TransformComponent>(m_Player);
+            auto &rb = GetRegistry().Get<RigidbodyComponent>(m_Player);
+            auto &pc = GetRegistry().Get<PlayerComponent>(m_Player);
+
+            t.Position = {0.0f, -2.0f, 0.2f};
+            rb.Velocity = {0.0f, 0.0f};
+
+            // Скидаємо стани гравця
+            pc.HasDash = true;
+            pc.IsDashing = false;
+            pc.IsWallSliding = false;
+            pc.TouchingWall = false;
+            pc.OnGround = false;
+
+            // Відновлюємо монети
+            pc.CoinsCollected = 0;
+            GetRegistry().View<CoinComponent, SpriteRendererComponent>(
+                [](EntityID, CoinComponent &c, SpriteRendererComponent &s) {
+                    c.Collected = false;
+                    s.Visible = true;
+                });
+        }
+    }
+
 private:
     Entity m_Player = {NULL_ENTITY};
     bool m_ShouldQuit = false;
@@ -174,12 +203,12 @@ private:
         });
 
         loadRects("Spikes", [&](Entity e, ColliderComponent &col, SpriteRendererComponent &s, const json &p) {
-            s.Color = {0.9f, 0.1f, 0.2f, 1.0f};
-            s.ZLayer = 2;
-            col.Size = {(float) p["w"] * 0.7f, (float) p["h"] * 0.7f};
-            col.IsTrigger = true;
-            GetRegistry().Add<SpikeComponent>(e);
-        });
+                 s.Color = {0.9f, 0.1f, 0.2f, 1.0f};
+                 s.ZLayer = 2;
+                 col.Size = {(float) p["w"] , (float) p["h"] };
+                 col.IsTrigger = true;
+                 GetRegistry().Add<SpikeComponent>(e);
+             });
 
         loadRects("Bouncers", [&](Entity e, ColliderComponent &col, SpriteRendererComponent &s, const json &p) {
             s.Color = {1.0f, 0.8f, 0.1f, 1.0f};
@@ -635,9 +664,8 @@ public:
         }
 
         if (ImGui::Button("Restart Level")) {
-            if (pc && pc->GetRegistry().Has<TransformComponent>(pc->GetPlayer())) {
-                pc->GetRegistry().Get<TransformComponent>(pc->GetPlayer()).Position = {0.0f, -2.0f, 0.2f};
-                pc->GetRegistry().Get<RigidbodyComponent>(pc->GetPlayer()).Velocity = {0.0f, 0.0f};
+            if (pc) {
+                pc->Restart();
             }
         }
         ImGui::End();
