@@ -10,6 +10,3 @@
 // ── Scene / ECS ───────────────────────────────────────────────────────────
 #include "registry.h"
 #include "components.h"
-
-// ── Entry Point ───────────────────────────────────────────────────────────
-#include "entry_point.h"

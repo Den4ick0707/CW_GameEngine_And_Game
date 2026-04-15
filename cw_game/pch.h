@@ -5,6 +5,4 @@
 
 
 
-
-
 #endif //COURSE_WORK_DARYEV_PCH_H

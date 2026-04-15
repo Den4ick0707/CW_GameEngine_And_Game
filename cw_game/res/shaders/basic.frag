@@ -3,33 +3,34 @@
 layout(location = 0) out vec4 FragColor;
 
 in vec4 v_Color;
-in vec2 v_TexCoord; // Якщо ви використовуєте текстури
+in vec2 v_TexCoord;
+flat in float v_TexIndex;
 
 void main()
 {
-    // 1. Базовий колір
+    vec2 resolution = vec2(1920.0, 1080.0);
+
     vec4 texColor = v_Color;
 
-    // 2. Легкий ефект неонового світіння (робимо яскраві кольори ще яскравішими)
-    // Використовуємо ступінь, щоб темні кольори (фон) залишились темними
-    vec3 bloom = pow(texColor.rgb, vec3(2.2)) * 0.5;
+    if(texColor.a < 0.01)
+    discard;
+
+    vec3 bloom = pow(texColor.rgb, vec3(2.2)) * 0.6;
     vec3 finalColor = texColor.rgb + bloom;
 
-    // 3. Віньєтка (Vignette) - затемнення по краях
-    // Отримуємо координати екрану від 0.0 до 1.0 (приблизно)
-    vec2 screenUV = gl_FragCoord.xy / vec2(1280.0, 720.0); // Замініть на розмір вашого вікна
-    vec2 centerUV = screenUV * 2.0 - 1.0; // Переводимо в діапазон [-1; 1]
+    // 3. Віньєтка (Vignette) - затемнення країв екрана
+    vec2 screenUV = gl_FragCoord.xy / resolution;
+    vec2 centerUV = screenUV * 2.0 - 1.0;
 
     // Обчислюємо відстань від центру
     float dist = length(centerUV);
 
-    // Smoothstep створює м'який градієнт на краях
-    float vignette = smoothstep(1.5, 0.4, dist);
-
+    // Створюємо м'яке затемнення
+    float vignette = smoothstep(1.2, 0.4, dist);
     finalColor *= vignette;
 
-    // 4. Легкий ефект Scanlines (смуги старого телевізора)
-    float scanline = sin(gl_FragCoord.y * 1.5) * 0.03;
+    // 4. Ефект Scanlines (смуги старого телевізора)
+    float scanline = sin(gl_FragCoord.y * 2.0) * 0.04;
     finalColor -= scanline;
 
     FragColor = vec4(finalColor, texColor.a);
