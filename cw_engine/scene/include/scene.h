@@ -32,21 +32,16 @@ namespace Engine::Scene {
 
         Scene &operator=(const Scene &) = delete;
 
-        // ── Entity shortcuts ──────────────────────────────────────────────
-
         /// @brief Створити сутність з ім'ям і TransformComponent.
         Entity CreateEntity(const std::string &name = "Entity");
 
         /// @brief Знищити сутність.
         void DestroyEntity(Entity entity);
 
-        // ── Lifecycle ─────────────────────────────────────────────────────
-
         virtual void Update(float dt);
 
         virtual void OnRender();
 
-        // ── Доступ ────────────────────────────────────────────────────────
 
         [[nodiscard]] Registry &GetRegistry() { return m_Registry; }
         [[nodiscard]] const Registry &GetRegistry() const { return m_Registry; }
@@ -64,7 +59,6 @@ namespace Engine::Scene {
         void SetGravity(float g) { m_Gravity = g; }
 
     private:
-        // ── Вбудовані системи ─────────────────────────────────────────────
 
         void UpdatePhysicsSystem(float dt);
 

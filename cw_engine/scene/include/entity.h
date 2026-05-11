@@ -23,7 +23,6 @@ namespace Engine::Scene {
 
         [[nodiscard]] bool IsValid() const { return ID != NULL_ENTITY; }
 
-        // Неявна конвертація щоб передавати Entity туди де очікується EntityID
         operator EntityID() const { return ID; }
 
         bool operator==(const Entity& o) const { return ID == o.ID; }
